@@ -1,0 +1,225 @@
+---
+title: "大航道計畫筆記 TicTacToe (1) - Class"
+date: 2017-10-27
+tags: []
+description: ""
+
+---
+
+My code：[https://repl.it/LNmu/0](https://repl.it/LNmu/0)
+
+*   物件導向：把game包裹成class,不一定要使用
+*   要注意array的複製問題
+
+* * *
+
+# 自動對弈：minimax演算法
+
+參考資料:
+
+*   [https://zh.wikipedia.org/wiki/极小化极大算法](https://zh.wikipedia.org/wiki/%E6%9E%81%E5%B0%8F%E5%8C%96%E6%9E%81%E5%A4%A7%E7%AE%97%E6%B3%95)
+*   [電腦下棋的關鍵： Min-Max 對局搜尋與 Alpha-Beta 修剪算法](http://programmermagazine.github.io/201407/htm/focus3.html)
+*   [youtube : A simple animation of the Minimax algorithm](https://www.youtube.com/watch?v=zDskcx8FStA)
+*   [Tic Tac Toe: Understanding The Minimax Algorithm](http://neverstopbuilding.com/minimax)
+
+* * *
+
+# Class 物件導向
+
+> 這個世界充滿著物件，我們都能把它們分門別類。例如，小孩子看到狗，不管是甚麼品種，可能都會叫牠作「汪汪」；我們自然地就會把世界的不同物件歸類。  
+> 物件導向程式語言的術語中，像「狗」這種類型，我們會稱為類別 (class)，而屬於該類別的物件就稱為實例 (instance)。  
+> 物件導向(Object-Oriented Programming)一種將「資料」和「方法」封裝到物件的設計方式，我們定義「類別 Class」，然後依此產生出「物件 Object」，類別可說是物件的樣板。
+
+## 參考資料
+
+*   [ruby使用手冊: class](https://guides.ruby.tw/ruby/classes.html)
+*   [ihower:物件導向](https://ihower.tw/rails/ruby.html#sec19)
+*   [為你自己學 Ruby on Rails：類別（Class）與模組（Module）](http://railsbook.tw/chapters/08-ruby-basic-4.html)
+
+## 基本宣告
+
+[https://guides.ruby.tw/ruby/classes.html](https://guides.ruby.tw/ruby/classes.html)
+
+```ruby
+class Dog
+	def speak
+	puts "Bow Wow"
+    end
+end
+
+pochi = Dog.new
+pochi.speak 
+#輸出 Bow Wow
+```
+
+## 繼承
+
+可以繼承Array，自己改寫method 但不定要使用
+
+```ruby
+class Pet
+  attr_accessor :name, :age
+
+  def say(word)
+    puts "Say: #{word}"
+  end
+end
+
+class Cat < Pet
+  def say(word)
+    puts "Meow~"
+    super
+  end
+end
+
+class Dog < Pet
+  def say(word, person)
+    puts "Bark at #{person}!"
+    super(word)
+  end
+end
+
+Cat.new.say("Hi")
+Dog.new.say("Hi", "ihower")
+```
+
+## 物件初始化
+
+[https://guides.ruby.tw/ruby/objinitialization.html](https://guides.ruby.tw/ruby/objinitialization.html)
+
+```ruby
+class Fruit
+     def initialize( k="apple" )
+     @kind = k
+     @condition = "ripe"
+     end
+end
+```
+
+## 實例變數（物件變數） Instance variables
+
+實例變數/物件變數 (instance variable) 以 @ 開頭，作用域僅限定於 self 指示的物件。即使是屬於同一類別的兩個不同物件，他們的實例變數也允許具有不同的值
+
+```ruby
+class Person # 大寫開頭的常數
+
+  def initialize(name) # 建構式
+    @name = name #instance variables
+  end
+
+  def say(word)
+    puts "#{word}, #{@name}" # 字串相加
+  end
+
+end
+
+p1 = Person.new("Bob")
+p2 = Person.new("John")
+
+p1.say("Hello") # 輸出 Hello, Bob
+p2.say("Hello") # 輸出 Hello, John
+
+```
+
+**重點** ：
+
+*   要宣告成物件後，存在物件內的變數
+*   使用物件變數的方法，叫做實例方法Instance method
+
+**注意**：
+
+*   所有的物件變數(@開頭)、類別變數(@@開頭)，都是封裝在類別內部的，類別外無法存取。
+*   範例中`p1.name`是無法直接存取的，要自己實作setter getter或者使用 `attr_accessor`  
+    [http://kaochenlong.com/2015/03/21/attr\_accessor/](http://kaochenlong.com/2015/03/21/attr_accessor/)
+
+## 類別變數 Class variables
+
+有點像Java 或C 裡面的 Static Variable
+
+```ruby
+
+class Person
+
+  @@name = “Person” # 類別變數
+
+  def self.say # 類別方法
+    puts @@name
+  end
+
+end
+
+Person.say # 輸出 Person
+
+```
+
+**重點**：
+
+*   只能用類別來呼叫，實體化後不能存取
+*   可以在實體方法中呼叫類別變數，但是不能在類別方法中呼叫實體變數  
+    **注意**：
+*   所有的物件變數(@開頭)、類別變數(@@開頭)，都是封裝在類別內部的，類別外無法存取。要自己實作setter getter或者使用 `attr_accessor`。
+
+參考資料：  
+[Understanding class instance variables in Ruby](http://thoughts.codegram.com/understanding-class-instance-variables-in-ruby/)
+
+## 類別實體變數 Class instance variable
+
+難啊難  
+（以下取自ruby girls）
+
+*   實體變數被用在實體方法裡
+*   類別變數被用在類別的任何地方(實體方法裡也可以)
+*   類別實體變數被用在類別的任何地方，除了實體方法以外
+*   實體變數跟類別實體變數都背一個@
+*   類別變數背兩個@@
+*   實體變數與類別實體變數都可以用attr\_accessor的方式改寫
+*   此外還有類別實體變數Class instance variable
+
+範例(取自ihover)
+
+> class instance variable 跟 class variable 最大的不同在於，class variable 在整個 class 繼承體系都是指同一個，而 class instance variable 則是各個 class 皆不同，因為如此 class instance variable 很多時候比 class variable 好用，像是參數化的 classes。
+
+```ruby
+class Foo
+@@var =1 # 這是 class variable
+@var = 2 # 這是 class instance variable
+attr_accessor :var #這將定義出 instance variable
+
+class << self
+ attr_accessor :var2 #這將定義出 class instance variable
+end
+
+ def initialize
+  @var,@var2 = 4,5 # 這是 instance variable
+ end
+
+ def mymethod1
+  puts @@var # 1 這是 class variable
+  puts @var # 4  這是 instance variable
+  puts @var2 # 5  這是 instance variable
+ end
+
+ def Foo.classmethod
+  puts @@var # 1 這是 class variable
+  puts @var # 2 這是 class instance variable
+  Foo.var2 = 6 # 這也是 class instance variable
+end
+end
+
+class BarOne < Foo
+  self.var2 = 7
+end
+
+class BarTwo < Foo
+  self.var2 = 8
+end
+
+Foo.classmethod
+puts Foo.var2 # 6
+puts BarOne.var2 #7
+puts BarTwo.var2 #8
+
+```
+
+[ruby girls:來聽聽類別變數與類別實體變數的自白(?)](http://ithelp.ithome.com.tw/articles/10160882)  
+[https://ihower.tw/blog/archives/1696](https://ihower.tw/blog/archives/1696)

@@ -1,0 +1,190 @@
+---
+title: "大航道計畫筆記 - Rails CRUD quick view"
+date: 2017-10-27
+tags: []
+description: ""
+
+---
+
+以建立photo album為例
+
+Helper
+
+GET
+
+POST
+
+PATCH/PUT
+
+DELETE
+
+photo\_path(@photo)
+
+/photos/1 **\[show action\]**
+
+/photos/1 **\[update action\]**
+
+/photos/1  
+**\[destroy action\]**
+
+photos\_path
+
+/photos  
+**\[index action\]**
+
+/photos **\[create action\]**
+
+edit\_photo\_path(@photo)
+
+/photos/1/edit **\[edit action\]**
+
+new\_photo\_path
+
+/photos/new  
+**\[new action\]**
+
+# 網路資源
+
+*   (中文)為你自己學Rails: [http://railsbook.tw/](http://railsbook.tw/)
+*   (中文)Ruby on Rails 實戰聖經: [https://ihower.tw/rails/](https://ihower.tw/rails/)
+*   (中文)Rails Guides Ruby on Rails 指南: [https://rails.ruby.tw/index.html](https://rails.ruby.tw/index.html)
+*   Rails API: [http://api.rubyonrails.org/](http://api.rubyonrails.org/)
+
+# 1.專案初始
+
+*   rails new _photo\_album_
+*   建立model : `$rails generate model photo`
+*   編輯db/migrate/下面的rb檔，把需要的欄位加上去  
+    【Ruby on Rails 實戰聖經】 [ActiveRecord - 基本操作與關聯設計](https://ihower.tw/rails/activerecord.html)
+*   產生migrate : `$rails db:migrate`
+*   需要修改db，可以產生新的migration : `$rails generate migration [migration name]` 在db/migrate下面產生新的rb檔
+*   可以使用`rails console` 使用ActiveRecord操作DB  
+    【Ruby on Rails 實戰聖經】 [ActiveRecord Query Interface - 資料表操作](https://ihower.tw/rails/activerecord-query.html)
+
+# 2.CRUD初始 建立index
+
+*   設定RESTful 路由： 在config/route.rb 下新增 resources :_photos_，使用`$rails routes`確認路由
+*   產生Controller : $ rails generate controller _photos_
+*   在_photos_\_controller.rb下 新增index action
+*   建立**index.html.erb**
+
+```erb
+     <%= link_to 'Show', photo_path(photo) %>
+     <%= link_to 'Edit', edit_photo_path(photo) %>
+     <%= link_to 'Destroy', photo_path(photo), method: :delete, data:{ confirm: "Are you sure?" } %>
+```
+
+*   到`route.rb` 下新增index 的路由 `root "photos#index"`
+
+# 3.Create
+
+*   在controller建立 **new action** `@photo = Photo.new`
+*   建立 **new.html.erb** ， 使用`form_for` helper，對 :url=>photos\_path 做POST  
+    Action View 表單輔助方法: [https://rails.ruby.tw/form\_helpers.html](https://rails.ruby.tw/form_helpers.html)  
+    form\_tag 和 form\_for的差異: [http://motion-express.com/blog/rails-form-tag-form-for](http://motion-express.com/blog/rails-form-tag-form-for)  
+    api doc - form\_for: [http://motion-express.com/blog/rails-form-tag-form-for](http://motion-express.com/blog/rails-form-tag-form-for)
+*   在controller建立 **create action** ，在privte宣告**strong parameters** 去接收資料，最後`redirect_to photos_url`
+
+```ruby
+def photo_params
+  params.require(:photo).permit(:title, :date, :description, :file_location)
+end
+```
+
+# 4.Read
+
+*   在controller建立show action `@photo = Photo.find(params[:id])`
+*   建立view: show.html.erb
+
+# 5.Update
+
+*   在controller建立 **edit action** `@photo = Photo.find(params[:id])`
+*   建立view: edit.html.erb （使用form\_for）
+*   在controller建立 **update action** ，使用 @_photo_.**update**(_photo\_params_)或 @_photo_.**update\_attribute**(_photo\_params_) 都可以
+
+# 6.Destroy
+
+*   在controller 建立 **destroy action**
+
+* * *
+
+# 加強你的程式
+
+## Model 資料驗證
+
+*   在model/\[model\].rb下 新增`validates_presence_of :title , ...`
+*   在controller下新增判斷，失敗後render或導向其他頁面
+*   在view裡面，可以新增錯誤訊息`if @photo.error.present?`,`@photo.error.each do |error, message|`
+
+## DRY YOUR CODE
+
+*   **在controller加上before\_action** `before_action :beforemethod, :only=>[:method1,:method2...]`
+*   **使用partial** ，建立 \__form_.html.erb檔，當作模板，在erb中使用`<%= render :partial=>"form"%>` 來引入
+
+## 圖片上傳gem carrierwave
+
+*   `gem 'carrierwave'`
+*   建立uploader : `$ rails generate uploader uploader_name`
+*   在models/photo.rb mount uploader\_name :`mount_uploader :file_location, UploaderName`
+
+## 加入bootstrap
+
+*   安裝gem `gem 'bootstrap-sass', '~> 3.3.6'`
+*   /app/assets/stylesheets/application.css 改成.scss，刪掉原本,加入`@import 'bootstrap-sprockets';` `@import 'bootstrap';`
+
+* * *
+
+# 小Tips
+
+## Rails api: Date
+
+[http://api.rubyonrails.org/v5.1/classes/Date.html](http://api.rubyonrails.org/v5.1/classes/Date.html)
+
+## ActiveRecord排序
+
+[https://apidock.com/rails/ActiveRecord/QueryMethods/order](https://apidock.com/rails/ActiveRecord/QueryMethods/order)
+
+```ruby
+  def index
+    @lists = List.all.order(date: :desc)
+  end
+```
+
+## 改掉醜醜的input type:file button
+
+[http://geniuscarrier.com/how-to-style-a-html-file-upload-button-in-pure-css/](http://geniuscarrier.com/how-to-style-a-html-file-upload-button-in-pure-css/)
+
+## Gem: gem font-awesome
+
+即將推出的 Bootstrap 4 將會移除 Glyphicons 可以裝font-awesome  
+[https://github.com/bokmann/font-awesome-rails](https://github.com/bokmann/font-awesome-rails)  
+有rails 的helper可以使用，例如：
+
+```erb
+<%=link_to fa_icon("eye"), photo_path(photo) %>
+```
+
+## Gem: bootstrap3-datetimepicker-rails
+
+[https://github.com/TrevorS/bootstrap3-datetimepicker-rails](https://github.com/TrevorS/bootstrap3-datetimepicker-rails)  
+要先裝 gem jquery-rails  
+[https://github.com/rails/jquery-rails](https://github.com/rails/jquery-rails)
+
+範例：
+
+```erb
+  <div class="form-group">
+  <%= f.label :date ,"Date"%>
+    <div class="input-group date" id="photo_date_pick">
+   <%= f.text_field :date, class:"form-control" %>
+   <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+    </div>
+  </div>
+  <script type="text/javascript">
+    $(function () {
+        $('#photo_date_pick').datetimepicker({
+            format: 'YYYY-MM-DD'
+        });
+    });
+  </script>
+```

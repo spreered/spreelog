@@ -1,0 +1,98 @@
+---
+title: "Ruby 我要搞懂你 (2) Splat operater"
+date: 2018-07-02
+tags: []
+description: ""
+image: "1_UnctVcitvTYUHqSZiSXFMg.png"
+---
+
+# 定義非必要參數
+
+splat operater (\*) 用法通常在 method 的非必要參數上面
+
+```ruby
+def add(*nums)
+  puts nums.inject(&:+)
+end
+
+add 1,2
+# 3
+add 1,2,3,4,5
+# 10
+```
+
+延伸閱讀：[Ruby Enumerable module 系列文-reduce(inject)](https://medium.com/@eggyy1224/ruby-enumerable-module-%E7%B3%BB%E5%88%97%E6%96%87-reduce-inject-667e34bd95af)
+
+當然也可以給預設參數
+
+```ruby
+def say(a=1,b=2)
+  puts a
+  puts b
+end
+
+say
+#1
+#2
+```
+
+double splat (\*\*) 代表的是 hash 參數
+
+```ruby
+def double_splat(**hash)
+ p hash
+end
+ 
+double_splat()
+# => {}
+ 
+double_s(a: 1)
+# => {:a => 1}
+ 
+double_splat(a: 1, b: 2)
+# => {:a => 1, :b => 2}
+ 
+double_splat('not a hash')
+# error
+```
+
+* * *
+
+# array 操作
+
+splat operater 也可以用來解構 array，  
+比如說將 array 解構後傳入函式中
+
+```ruby
+def add(a, b)
+  puts a+b
+end
+nums = [1,2]
+add *nums
+# 3
+```
+
+強制轉換型別
+
+```ruby
+words  = *"hello world"
+# => ["hello world"]
+```
+
+解構 array
+
+```ruby
+data = [1, 2, 3, 4]
+ 
+a, *b = data
+puts "#{a}, #{b}"
+# => 1, [2, 3, 4]
+*a, b = data
+puts "#{a}, #{b}"
+# => [1, 2, 3], 4
+ 
+a, *b, c = data
+puts "#{a}, #{b}, #{c}"
+# => 1, [2, 3], 4
+
+```

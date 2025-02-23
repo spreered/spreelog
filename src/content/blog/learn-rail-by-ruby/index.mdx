@@ -1,0 +1,103 @@
+---
+title: "用 Ruby 學 Rails 的小技巧"
+date: 2019-06-18
+tags: []
+description: ""
+
+---
+
+本文參考 [RailsConf 2019 - Code Spelunking: teach yourself how Rails works by Jordan Raine](https://youtu.be/LiyLXklIQHc) 影片中所提到透過 Ruby 內建的方法來了解 Rails 的原始碼的幾個小技巧。
+
+## Finding instance methods
+
+假如我們有一個 Dog class，裡面有兩個 instance method
+
+```ruby
+class Dog
+  def my_name
+  end
+  def run
+  end
+end
+```
+
+可以透過 `Dog.new.methods` 或 `Dog.instance_methods`列出所有 instance method
+
+```ruby
+Dog.new.methods
+ => [:my_name, :run, :instance_variable_set, :instance_variable_defined?, :remove_instance_variable, :instance_of?, :kind_of?, :is_a?, :tap, :instance_variable_get, :public_methods, :instance_variables, :method, :public_method, :define_singleton_method, :public_send, :singleton_method, :extend, :pp, :to_enum, :enum_for, :<=>, :===, :=~, :!~, :eql?, :respond_to?, :freeze, :inspect, :object_id, :send, :to_s, :display, :nil?, :hash, :class, :singleton_class, :clone, :itself, :dup, :taint, :yield_self, :untaint, :tainted?, :untrusted?, :untrust, :frozen?, :trust, :methods, :singleton_methods, :protected_methods, :private_methods, :!, :equal?, :instance_eval, :==, :instance_exec, :!=, :__id__, :__send__]
+```
+
+這裡面跑出一大堆繼承鍊上面出現的 methods，可是如果我們只想知道這個類別的物件可以使用哪些 instance method，可以 Object 的 instance\_methods 扣掉，因為 Dog 的 superclass 正是 Object
+
+```ruby
+Dog.superclass
+# => Object
+Dog.new.methods - Object.new.methods
+# => [:my_name, :run]
+```
+
+## where method define
+
+如果要查看 method 原始碼的位置，可以透過 `Method#source_location` 找到原始碼位置
+
+```ruby
+dog = Dog.new 
+
+dog.method(:my_name)
+# => #<Method: Dog#my_name>
+
+dog.method(:my_name).source_location
+# => ["dog.rb", 2]
+```
+
+如果在 Rails 裡面可以直接使用 "Mehtod#source" 看原始碼
+
+```ruby
+# if not using Rails, you must use gem 'method_source'
+
+p dog.method(:my_name).source
+# =>"  def my_name\n  end\n"
+
+# beautify display
+dog.method(:my_name).source.display
+# => def my_name
+#    end
+```
+
+但如果 method 是由 c 撰寫的，可能就會找不到
+
+如果要一層層的找尋在 superclass 中定義的 method， 可以使用 `Method#super_method`  
+例如以下利用 Rails 的 `Model#save` 做範例：
+
+```ruby
+>> post = Post.new
+>> post.method(:save)
+Post#save(*args)
+>> post.method(:save).super_method
+ActiveRecord::Suppressor#save(*arg1)
+>> post.method(:save).super_method.super_method
+ActiveRecord::Transactions#save(*arg1)
+>> post.method(:save).super_method.super_method.super_method
+ActiveRecord::AttributeMethods::Dirty#save(*arg1)
+>> post.method(:save).super_method.super_method.super_method.super_method
+ActiveRecord::Validations#save(*options)
+>> post.method(:save).super_method.super_method.super_method.super_method.super_method
+ActiveRecord::Persistence#save(*args, &block)
+>> post.method(:save).super_method.super_method.super_method.super_method.super_method.super_method
+nil
+```
+
+## dig into gems
+
+可以透過 `bundle open` 開啟 gem 的原始碼。在此之前先設定預設開啟的 editor
+
+```shell
+$ export BUNDLER_EDITOR="vim"
+# 或是用 vscode
+$ export BUNDLER_EDITOR="code -w"
+
+$ bundle open activejob
+```
+
+在原 talk 影片內有示範如何透過以上的技巧來爬 code，在 sidekiq 塞東西進去。

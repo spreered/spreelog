@@ -1,0 +1,24 @@
+---
+title: "用 CSS 畫圓餅圖，順便做個倒數計時器"
+date: 2020-05-18
+tags: []
+description: ""
+
+---
+
+因為最近公司的學員在做番茄鐘的專案，自己也想說順手兜一個圓餅圖的 count down timer。研究了一下 CSS 怎麼畫圓餅圖結果還真麻煩，倒是 JS count down timer 大概十五分鐘就處理好了。
+
+主要的原理是用圓形來配合不同的方形旋轉來切割出扇形，但是如果超過 180 度角的扇形就要另外貼一個半圓上去，如果是靜止的狀態的確是沒什麼問題，但如果我要做 transition 的話，那個超過 180 度的半圓就很難依據我的 transition time 去顯示，最後只好放棄套上 transition 效果。
+
+<p class="codepen" data-height="400" data-theme-id="dark" data-default-tab="result" data-user="spreered" data-slug-hash="zYvMPRR" style="height: 400px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 2px solid; margin: 1em 0; padding: 1em;" data-pen-title="pie chart count down timer">
+  <span>See the Pen <a href="https://codepen.io/spreered/pen/zYvMPRR">
+  pie chart count down timer</a> by spreered (<a href="https://codepen.io/spreered">@spreered</a>)
+  on <a href="https://codepen.io">CodePen</a>.</span>
+</p>
+<script async src="https://static.codepen.io/assets/embed/ei.js"></script>
+
+See the Pen [pie chart count down timer](https://codepen.io/spreered/pen/zYvMPRR) by spreered ([@spreered](https://codepen.io/spreered)) on [CodePen](https://codepen.io).
+
+雖然有點鳥可是還是練習到了 css variable 和 `clip-path` 。  
+另外圓餅圖是參考這個範例做出來的：  
+[HOW TO: Pure CSS pie charts w/ CSS variables](https://codeburst.io/how-to-pure-css-pie-charts-w-css-variables-38287aea161e)

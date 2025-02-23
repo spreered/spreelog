@@ -1,0 +1,112 @@
+---
+title: "Ruby 我要搞懂你 (1) 關於物件一些事"
+date: 2018-05-30
+tags: []
+description: ""
+image: "1_UnctVcitvTYUHqSZiSXFMg-1.png"
+---
+
+最近翻了一本書「Ruby for Rails, Rails 開發者的必備學習手冊」，雖然有點舊了，但是對於Ruby的觀念介紹非常清楚，於是著手寫一下我自己的筆記。第一篇是有關於物件的一些事情。
+
+首先透過`new`方法產生一個物件
+
+```ruby
+obj = Object.new
+```
+
+  
+
+* * *
+
+# 呼叫函式
+
+然後給這個物件一些行為
+
+```ruby
+def obj.talk
+  puts "this is an object"
+end
+```
+
+呼叫定義好的函式
+
+```ruby
+> obj.talk
+this is an object
+```
+
+其中 **「呼叫函式」** 這個動作，比較正確的說法是將 **「訊息傳送」** 給一個物件：
+
+*   物件通常由變數代表，當然雙引號字串也算是物件
+*   點`.` 代表訊息傳送的運算子
+*   訊息也就是函式名稱。透過傳遞訊息給物件，物件會找尋到一個存在的函式並且執行。
+
+* * *
+
+# object\_id
+
+每個物件都有獨立的編號，因此可以透過Object的內建屬性`object_id`來辨認物件
+
+```ruby
+ > obj.object_id
+ => 70329511374480
+```
+
+這可以用來讓我們確認Ruby在產生變數的過程中，判斷是不是同一個物件。
+
+```ruby
+> "this is a string".object_id
+ => 70329511299260
+2.4.2 :009 > "this is a string".object_id
+ => 70329511270200
+ #雖然內容相同，但每次""產生的字串都是不同物件
+```
+
+* * *
+
+# respond\_to?
+
+用來查詢物件是否有這個屬性/method
+
+```ruby
+ > obj.respond_to?("talk")
+ #傳入屬性/函式名稱，記得要用字串
+ => true
+```
+
+這種功能是Ruby提供物件導向的introspection 與 reflection能力之一，可以讓物件有自我描述能力。例如`methods`也算
+
+```ruby
+> obj.methods
+=> [:talk, :remove_instance_variable, :instance_of?, :kind_of?, :is_a?, :tap, :public_send, :singleton_method, ]#省略了一些...
+```
+
+* * *
+
+# send
+
+前面有說到可以用點`.`這個運算子來傳送「訊息」給物件（或者我們比較常聽到的是呼叫函式）。而`send`這個方法也可以做到一樣的事情
+
+```ruby
+> obj.send("talk")
+this is an object
+```
+
+這樣看起來很雞肋，但是在不確定要呼叫什麼函式的場景下就會很好用。比如說要使用者輸入你要呼叫的函式名稱
+
+```ruby
+puts "enter a function name"
+funciton_message = gets.chomp
+```
+
+就可以搭配前面的`respond_to?`來判斷要送什麼訊息給物件（呼叫什麼函式）
+
+```ruby
+if obj.respond_to?(funciton_message)
+  obj.send(function_message)
+else
+  puts "no such funciton"
+end
+```
+
+另外有一個完全ㄧ樣的`__send__`可以使用。

@@ -1,0 +1,352 @@
+---
+title: "在 Rails API 中使用 Devise 驗證"
+date: 2019-10-07
+tags: []
+description: ""
+
+---
+
+Rails 作為 API server 如果要做身份驗證，有很多種方式，本篇試著使用一個比較單的概念來實作如何透過 Devise 管理身份認證的狀況下，如何核發 token 給 API 使用。
+
+主要會講解幾個部分：
+
+*   簡單說明 API 如何驗證身份與流程
+*   怎麼產生 unique token
+*   API 驗證的實作
+
+# 事前準備
+
+因為基本的 CRUD 不是本篇重點，這裡已經先準備好了以下東西
+
+*   Rails 5.x 以上，Ruby 2.5 以上
+*   安裝好 devise gem, 並且產生 user model
+*   model:
+    *   User: email, password (has\_many order), 使用 email 登入
+    *   Order: user\_id (belongs\_to user)
+
+# API 驗證身份的方式與流程
+
+因為如果透過 API 與 Rails server 溝通，沒辦法以夾帶 session cookie 的方式作為使用者登入/登出狀態的管理，所以通常在 request header 或 body 中夾帶 access token 的方式處理
+
+例如我如果要對某個 API 存取某些資源，裡面一定要夾帶著 `access_token` 之類的欄位
+
+```javascript
+// post /api/v1/orders/ to create order
+{
+  access_token: 'token123454321',
+  order:{
+    user_id: 123,
+    order_items: [
+      {
+         name: '可愛巧虎島三月號'
+         amount: 1
+      },
+      { //...}
+    ]
+  }
+} 
+```
+
+當 API server 驗證 `access_token` 是代表某位使用者時，才可以做其他的操作。  
+所以我們就此得知：
+
+*   access token 必須是能代表 user 的 unique value
+*   access token 是秘密，所以要先讓 client 想辦法透過事前驗證來取得它
+
+本篇將實作一個簡單的 token 核發及驗證機制。  
+（實際上也有其他種驗證的方法 如 JWT 這裡就不細講，但還大致上的概念差不多，就是發 API 時一定要夾帶著某種 key 來做身份識別。）
+
+# 在 User 上產生 auth\_token 欄位
+
+首先我們要在 `User` 上面新增一個可以放 token 的欄位 `auth_token`，並且想辦法在裡面放一組 unique token 在裡面。
+
+Devise 有提供一個 `Devise.friendly_token` 來亂數產生 token，但因為我們又要 unique，在 Rails 5 中 ActiveRecord 有提供 `has_secure_token` 這個類別方法來讓我們產生不會重複的 token 值。
+
+先在 User model 中新增 `has_secure_token :auth_token`
+
+_app/models/user.rb_
+
+```ruby
+class User
+  devise :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :validatable
+  has_many :orders
+
+  has_secure_token :auth_token
+  # 加上這行
+```
+
+接著來產生一個 migration，在 `User` 上新增 `auth_token` 這個欄位
+
+```bash
+$ rails g migration add_auth_token_on_users
+```
+
+編輯 migration
+
+\_db/migrate/xxxxxxx\_add\_authentication\_toke\_on\_user.rb
+
+```ruby
+class AddAuthenticationTokeOnUser < ActiveRecord::Migration[6.0]
+  def change
+    add_column :users, :auth_token, :string
+    add_index :users, :auth_token, unique: true
+    
+    # 因為會有舊的使用者在你的 db 裡面，所以要幫他們產生 auth_token
+    User.all.each do |user|
+      user.regenerate_auth_token
+      # regenerate_xxx 是 has_secure_token 提供的方法
+      # 可以重新產生一組 token
+    end
+  end
+end
+```
+
+然後 db migrate
+
+```bash
+$ rails db:migrate
+```
+
+可以試著在 rails console 裡面來測試有沒有成功
+
+```bash
+> user = User.first
+> user.auth_token
+xiok6KiLcKRyGkLszGBx7Srr
+> user.regenerate_auth_token
+true
+> user.auth_token
+XhiQ3pQUzqxM8WttHMbd1i5W
+```
+
+好棒棒，我們已經有 token 可以用了
+
+# 撰寫 API 先期準備
+
+在實作 controller 之前，先把 API controller 整理好  
+主要是因為 API 的認證方式不太ㄧ樣外，也不需要像一般 web action 去 render html javascript 什麼的，所以在製作 Rails API 前會先把 API controller 先處理一下
+
+## routes
+
+_config/routes.rb_
+
+```ruby
+Rails.application.routes.draw do
+  # ...
+  
+  namespace :api do
+    namespace :v1 do
+      # 你之後的路由
+    end
+  end
+end
+```
+
+沒什麼好說的，就是之後 api 的路由會從 `api/v1/your_path` 這樣的形式下去。  
+會做版本的原因是因為可能 API 會版本升級，這只是一個習慣  
+等等的範例會從這個路由下手
+
+## controller
+
+接下來新增一個 `api_controller.rb`
+
+_app/controllers/api\_controller.rb_
+
+```ruby
+class ApiController < ActionController::API
+ 
+end
+```
+
+這裡是先做了一個 API 的 base controller，會把一些預先認證的方法放這裡，  
+之後要做其他的 API controller 就會繼承自這個 class。
+
+另外前面有說，因為 API 不需要像是一般 response 要 render 一堆有的沒的，所以可以看到它是繼承自 `ActionController::API`，而不是比較肥的 `ActionController::Base`
+
+# 登入取得 token
+
+這裡我們的目的是要 post `api/v1/login` 帶入 request body：
+
+```javascript
+{
+  'email': 'abc@mail.com'
+  'password': 'your_password'
+}
+```
+
+然後可以收到 response
+
+```javascript
+{
+  'message': 'ok'
+  'auth_token' 'secret_token'
+}
+```
+
+首先在 routes.rb 新增登入路由 `login`
+
+_config/routes.rb_
+
+```ruby
+Rails.application.routes.draw do
+  # ...
+  
+  namespace :api do
+    namespace :v1 do
+      post 'login' => 'authentication#login'
+    end
+  end
+end
+```
+
+接著新增 _app/controllers/api/v1/authentication\_controller.rb_
+
+```ruby
+class Api::V1::AuthenticationController < ApiController
+  def login
+    if valid_user?
+      render json: { message: 'ok', auth_token: @user.auth_token}, status: 200
+    else
+      render json: { message: 'invalid user email or password'}, status: 401
+    end
+  end
+
+  private
+
+  def valid_user?
+    @user = User.find_by(email: params[:email])
+    return false if @user.blank?
+
+    @user.valid_password?(params[:password])
+    # valid_password? 是 Devise 提供的
+  end
+end
+
+```
+
+其實做的事情很簡單，就是確認打過來的帳號密碼對不對，然後將 `auth_token` 回傳
+
+# 使用 token
+
+這裡我們希望 GET `api/v1/orders` 可以取得 user 底下所有 order 列表，但主要是可以透過 `auth_token` 做驗證和登入
+
+_config/routes.rb_
+
+```ruby
+Rails.application.routes.draw do
+  # ...
+  
+  namespace :api do
+    namespace :v1 do
+      post 'login' => 'authentication#login'
+
+      resources :orders
+    end
+  end
+end
+```
+
+在 `ApiController` 上新增一個驗證的 method
+
+_app/controllers/api\_controller.rb_
+
+```ruby
+class ApiController < ActionController::API
+  def authenticate_user_token
+    user = User.find_by(auth_token: params['auth_token'])
+    return render(json: {message:'invalid token'}, status: 401) if user.nil?
+
+    sign_in(user, store: false)
+    # store false would not store user session
+  end
+end
+```
+
+其中 `sign_in` 是 Devise 提供的手動登入方法，這裡特別要注意的是因為我們必須每次連線都透過 `auth_token` 做驗證，並不是用瀏覽器的 cookie，所以 `sign_in` 時戴上 `store: false` 這個參數是為了讓 Devise 不要把 user 登入狀態存到 session 裡面。
+
+當 `sign_in` user 成功之後，我們在 controller 裡面就可以使用 Devise 提供的 `current_user` 方法了
+
+接著完成我們的 orders controller，記得在最前面加上驗證的 before\_action
+
+_app/controllers/api/v1/orders\_controller.rb_
+
+```ruby
+class Api::V1::OrdersController < ApiController
+  before_action :authenticate_user_token
+
+  def index 
+    render json: current_user.orders
+  end
+
+end
+```
+
+# 登出使用者
+
+雖然不用 session 做 Devise 登入權限管控，但我們這裡目的是登出之後，可以重新產生一把 `auth_token`，讓之前的拿到的那把失效。
+
+這個步驟我們希望透過 post `api/v1/logout` 帶上以下資訊：
+
+```javascript
+{
+  'auth_token': 'your_tokens'
+}
+```
+
+然後 server 就會把這把 token 失效。
+
+首先加上 `logout` 的路由：
+
+_config/routes.rb_
+
+```ruby
+Rails.application.routes.draw do
+  # ...
+  
+  namespace :api do
+    namespace :v1 do
+      post 'login' => 'authentication#login'
+      post 'logout' => 'authentication#logout'
+      
+      resources :orders
+    end
+  end
+end
+```
+
+然後在 `Api::V1:AuthenticationController` 上面新增 `#logout`。要注意的是執行 logout 前也要做一次身份認證
+
+_app/controllers/api/v1/authentication\_controller.rb_
+
+```ruby
+class Api::V1::AuthenticationController < ApiController
+  before_action :authenticate_user_token, only: :logout
+  # 加上這個
+  
+  def login
+    if valid_user?
+      render json: { message: 'ok', auth_token: @user.auth_token}, status: 200
+    else
+      render json: { message: 'invalid user email or password'}, status: 401
+    end
+  end
+
+  # 加上這個
+  def logout
+    current_user.regenerate_auth_token
+    render json: { message: 'you have been logged out'}, status: 200
+  end
+
+  private
+
+  def valid_user?
+    @user = User.find_by(email: params[:email])
+    return false if @user.blank?
+
+    @user.valid_password?(params[:password])
+  end
+end
+```
+
+完成！

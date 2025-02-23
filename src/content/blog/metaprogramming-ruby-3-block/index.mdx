@@ -1,0 +1,358 @@
+---
+title: "Metaprogramming Ruby (3) Block and Scope"
+date: 2018-12-06
+tags: []
+description: ""
+image: "Ruby_programming_language_thumb650.jpg"
+---
+
+# 基本概念
+
+`{ ... }` 跟 `do ... end` 都是程式碼區塊 **block**， 本身不能當作物件。
+
+基本的 block 用法，可以在 method 中插入 `yield`
+
+```ruby
+def a_method(a, b)
+  a + yield(a, b)
+end
+
+a_method(1, 2) {|x, y|(x + y) * 3 } #=>10
+```
+
+使用 `Kernel#block_given?` 來判斷有沒有接收到 block
+
+```ruby
+def a_method
+  return yield if block_given?
+end
+```
+
+## block 就是閉包
+
+以最近流行的語言來說，在 javascript 可能比較會看到**閉包**這個概念，而早期的 Scheme，到 functional language 如 ML 和 LISP 也會大量運用。而 Ruby 為了向 LISP 致敬，也引入了這個概念。
+
+> > 本質上來說，一個閉包是一塊代碼，它們能作為參數傳遞給一個方法調用 - Martin Fowler  
+> > （全文可以看[這裏](https://ihower.tw/blog/archives/1456)
+
+而達到閉包的好處，就是 block 在宣告的時候可以綁定語彙環境變數，然後交由 method 調用  
+以下面的例子來說：
+
+```ruby
+def just_yield
+  yield
+  # 這邊不可以取用變數 top_level_variable
+end
+
+top_level_variable = 1
+
+just_yield do 
+  top_level_variable += 1  # 這個是語彙環境中的變數，會被包在 block 中，整包一起丟到 just_yield 中使用
+  local_to_block = 1  # 這是 block 定義的 local 變數。
+end # 當 block 被丟進去 method 中，這段程式碼就會執行了
+
+
+top_level_variable # => 2  
+local_to_block     # => Error! 因為 這個是閉包內的 local 變數
+```
+
+*   在 `do ... end` 的 block 內是個閉包環境，但他可以使用語彙環境內的變數，也就是 `top_level_variable`。
+*   當這個 block 丟給 `just_yield` ，程式碼就會執行，`top_level_variable` 就會加一。
+*   但因為 block 是閉包，所以在 `just_yield` 中不可以使用 block 內定義的變數
+*   而跳出了 block ，語彙環境內的變數（`top_level_variable`）會被修改，但是 local 變數是不能取用的（`local_to_block`）
+
+總歸一句：block 就是個閉包，他可以攜帶所在的 local binding 進入 method 內「辦事」
+
+# Ruby 的 Scope
+
+Ruby 的程式碼作用域跟 Java C# 不一樣：在內層的 scope 是看不到 outer scope 的區域變數。
+
+```ruby
+a = 'yes'
+def scope_test
+    puts a  #  error, 看不到a
+end
+```
+
+而更換 scope 就是更換區域變數的綁定 （binding）  
+使用 `local_variables` 可以查看目前所綁定的區域變數
+
+```ruby
+v1 = 1
+class MyClass
+  v2 = 2
+  local_variables #[v2]
+  def my_method
+    v3 = 3
+    local_variables
+  end
+  local_variables #[v2]
+end
+
+obj = MyClass.new
+obj.my_method     # =>[:v3]
+local_variables   # =>[:v1, :obj]
+```
+
+如果要使用全域變數，可以使用錢字號 `$`來命名  
+但是因為難以追蹤影響的範圍，不建議這樣用。  
+盡量使用 instance variable `@var`，則可以在最上層定義這個變數，在內層的 scope 都可以讀到。
+
+## self 不同 scope 也一定不同
+
+在不同的 object 內，self 必然也是不一樣的。
+
+```ruby
+class MyClass
+  def my_method(num)
+    @var = num
+    self
+  end
+  def my_other_method
+    @var
+  end
+end
+obj = MyClass.new
+obj_1 = MyClass.new
+obj.my_method(1)  # obj
+obj_1.my_method(2)  # obj_1
+
+obj.my_other_method  # 1
+obj_1.my_other_method # 2
+```
+
+在 obj 與 obj\_1 執行 my\_method，也就更換了 self 的綁定，其實也就屬於不同的 scope。
+
+## Scope Gates
+
+在 ruby 中 scope 像是一個閘門，裡外區域變數是無法互通的，主要的 scope gates 有三個：
+
+*   **Class definitions** 類別定義的區塊
+*   **Module definitions** 模組定義的區塊
+*   **Methods** 方法定義的區塊
+
+（其中 Class 和 Module 中的程式碼是**立即執行**的，但是 method 的 `def` 裡面的程式碼則是**呼叫時才會執行**。）
+
+## nested lexical scopes / flat scope
+
+透過 **block** ，可以讓區域綁定的變數通過 scope gates。  
+例如以下的例子，利用 block 的方式來定義 class，就可以用到 local binding 的變數們。而像是 method 可以使用 `define_method` 的方式加上來加上 block，也可以達到使用 local binding 的效果：
+
+```ruby
+my_var = "Success"
+MyClass = Class.new do 
+  puts " #{my_var} in the class definition!"
+  #def my_method
+  
+  # 用 #defind_method 來呼叫block, 才可以帶入my_var
+  defind_method :my_method do 
+    " #{my_var} in the method"
+  end
+end
+```
+
+上面這個技巧就稱作 **nested lexical scopes** 或 **flat scope**
+
+也可以使用這個方法，來**共享** scope：
+
+```ruby
+def define_methods
+  share = 0
+  Kernel.send :defind_method, :counter do
+    shared
+  end
+  Kernel.send :defind_method, :inc do |x|
+    shared += x
+  end
+  
+end
+```
+
+總結，如果要使用 flat scope 你可以用以下的方式改寫定義
+
+*   class 定義改成 Class.new
+*   module 定義改成 Module.new
+*   method 定義改成 define\_method
+
+## instance\_eval()
+
+`instance_eval()` 可以重新打開 instance scope
+
+```ruby
+class MyClass
+  def initialize
+    @v = 1
+  end
+end
+
+obj = MyClass.new
+
+obj.instance_eval do 
+  self    # MyClass
+  @v      # =>1
+end
+```
+
+但有沒有發現，打開之後的 self 還是原本的 `MyClass`，並不能使用呼叫位置的 local binding，因此如果要在這個狀況下使用 Flat Scope，可以使用 `instance_exec()` 這個方法，但實務上會破壞封裝，所以不太建議這樣做。
+
+# Proc
+
+`Proc` 讓 block 轉化成物件的形式使用。使用 `call` 可以執行 proc
+
+```ruby
+inc = Proc.new{|x| x + 1 }
+inc.call(2)
+```
+
+或是使用 **lambda**。lambda 本身是 Proc 的一個實例（但會有些許不同，稍後會講）
+
+```ruby
+dec = lambda {|x| x + 1}
+dec.class
+dec.call(2)
+# 或是用
+dec = ->(x){ x + 1 }
+```
+
+## Proc 與 block 的轉換
+
+使用 `&` 可以將 block 與 proc 互相轉換
+
+```ruby
+def math(a, b)
+  yield(a, b)
+end
+
+def do_math(a, b, &operation)
+  # operation 是 proc
+  # &operation 是 block
+  math(a, b, &operation)
+end
+
+do_math(2, 3){|x, y| x * y } # =>6
+```
+
+block 轉為 proc
+
+```ruby
+def my_method(&the_proc)
+  the_proc
+end
+
+p = my_method {|name| "Hello, #{name}!" }
+p.class # => Proc
+p.call("Bill")
+```
+
+proc 轉為 block
+
+```ruby
+def my_method(greeting)
+  "#{greeting}, #{yield}!"
+end
+
+my_proc = proc { "Bill" }
+my_method("Hello", &my_proc)
+```
+
+## lambda 和 proc 的主要差別
+
+lambda 會檢查參數的數量，proc不會
+
+```ruby
+#lambda
+lam = lambda { |x| puts x }
+lam.call(2) #=> 2
+lam.call(2,3) #=> ArgumentError
+
+# proc
+proc = Proc.new { |x| puts x }
+proc.call(2) #=> 2
+proc.call(2,3) #=> 2    proc忽略了其他參數，只傳第一個
+```
+
+return 的不同。lambda 的 return 會回傳給呼叫的地方，proc 的 return 會跳出整個 method
+
+```ruby
+def lambda_test
+  lam = lambda { return }
+  lam.call
+  puts "Haha! after lam call, i survived!"
+end
+def proc_test
+  p = Proc.new { return }
+  p.call
+  puts "after proc call, i survived!"
+end
+
+lambda_test # => "Haha! after lam call, i survived!"
+proc_test # => # 沒東西
+```
+
+建議使用 lambda，較為直觀。
+
+# Method Object
+
+method 也可以被挑出來當做 callable object
+
+```ruby
+class MyClass 
+  def initialize(value)
+    @x = value
+  end
+  def my_method
+    @x
+  end
+end
+
+object = MyClass.new(1)
+m = object.method :my_method
+m.call
+```
+
+`obj#method` 可以把 method 轉為 object (Singleton Method)
+
+*   可以把 Method 轉為 Proc ( `Mehtod#to_proc`)
+*   可以把 Block 轉為 Mthod (`define_method`)  
+    Method 和 Proc 的差別是：
+*   method 內的 scope 是在它定義的 object 上
+*   proc 內的 scope 是在定義的區域上
+
+## unbound method
+
+method 可以使用下面兩種方式，脫離物件的綁定
+
+*   `Method#unbind`
+*   `Module#instance_method`
+
+```ruby
+unbound = MyModule.instance_method(:my_method)
+unbound.class # => UnboundMethod
+```
+
+*   Unbound form class 只能 bind 在同個 class 和 subclass
+*   unbound form module 沒此限制  
+    可以用 `define_method` 去重新綁定
+
+```ruby
+String.class_eval do 
+  define_method :another_method, unbound
+end
+"abc".another_method # => 42
+```
+
+（`class_eval` 可以重新打開 class）
+
+* * *
+
+# 總結
+
+*   block 不是物件，但是可以轉換成物件 **Proc** 或 **lamda**
+*   block 本身具有閉包的特性
+*   Ruby 的 scope gate：
+    *   **Class definitions** 類別定義的區塊
+    *   **Module definitions** 模組定義的區塊
+    *   **Methods** 方法定義的區塊
+*   Ruby 的 scope gate 蠻嚴謹的，跟其他語言不太一樣。要打破 scope gate，通常可以利用 block 閉包的特性來使用 **flat scope** 的技巧
+*   method 也可以轉換成 method object 來使用，但使用上有限制。
+*   `instance_eval` 可以把物件的 scope 重新打開，`class_eval` 可以把類別的 scope 重新打開。

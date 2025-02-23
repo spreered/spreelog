@@ -1,0 +1,125 @@
+---
+title: "大航道計畫筆記 - Tic Tac Toe (2) 拷貝物件問題"
+date: 2017-10-27
+tags: []
+description: ""
+
+---
+
+My code: [https://repl.it/LNmu/0](https://repl.it/LNmu/0)
+
+*   物件導向：把game包裹成class,不一定要使用
+*   要注意array的複製問題
+
+* * *
+
+# Array的賦值
+
+因為在minimax 演算法裡面，需要使用拷貝array/class來計算每個move可能的分數，來挑選最好的move，所以在array賦值的部分如果弄不清楚，debug de不完。  
+Array, String , Hash都是指向一串記憶體區塊，跟一般的變數（int, char）方式不太ㄧ樣，因此給值的時候要多注意！
+
+## 傳入method直接給新的array
+
+```ruby
+
+def setArr arr
+	arr=[5,6,7,8]
+end
+
+
+#1.array 傳入method，裡面直接assign new array
+nums = [1,2,3,4]
+print("nums :#{nums.object_id} #{nums} \n")
+setArr(nums)
+print("1. nums :after setArr #{nums.object_id} #{nums} \n")
+
+#輸出
+#nums :70239820552980 [1, 2, 3, 4]
+#1. nums :after setArr 70239820552980 [1, 2, 3, 4]
+
+
+```
+
+這部分蠻合理的，nums傳入method `setArr`裡面，（我一開始以為）並不是傳址，所以並不會實際造成nums的修改  
+但是以下的方式卻又會修改到nums
+
+## 傳入method 使用迴圈的方式修改Array元素
+
+```ruby
+
+#2.array 傳入method，裡面直接用loop的方式修改array
+nums = [1,2,3,4]
+print("nums :#{nums.object_id} #{nums} \n")
+setArrloop(nums)
+print("2. nums :after setArrloop #{nums.object_id} #{nums} \n")
+
+#nums :70239820552980 [1, 2, 3, 4]
+#2. nums :after setArrloop 70239820552480 [5, 6, 7, 8]
+
+```
+
+這裡發現，如果method裡面是使用迴圈的方式給值，就會動到nums  
+因此我們再作進一步的驗證...
+
+## 將array賦值到新的變數
+
+```ruby
+
+#3. new_nums1 直接給一個array, object_id會變 不會影響到nums
+nums = [1,2,3,4]
+new_nums1=nums
+print("nums :#{nums.object_id} #{nums} \n")
+print("new_nums1 :#{new_nums1.object_id} #{new_nums1} \n")
+new_nums1=[11,12,13,14]
+print("3. nums :#{nums.object_id} #{nums} \n")
+print("3. new_nums1 :#{new_nums1.object_id} #{new_nums1} \n")
+
+
+#nums :70239820552260 [1, 2, 3, 4]
+#new_nums1 :70239820552260 [1, 2, 3, 4]
+#3. nums :70239820552260 [1, 2, 3, 4]
+#3. new_nums1 :70239820551800 [11, 12, 13, 14]
+
+```
+
+這裡會發現，一開使assign過去，object\_id是一樣的，並不會產生一個新的區塊來儲存，而是複製位址  
+如果使用\[11,12,13,14\]assign 到new\_nums1 ，其實已經產生了一個新的object\_id，自然不會修改到nums
+
+## 使用迴圈修改新的變數
+
+```ruby
+
+#4. new_nums2 直接修改裡面的attribute, object_id不變，	會改到nums  
+nums = [1,2,3,4]
+new_nums2=nums
+print("nums :#{nums.object_id} #{nums} \n")
+print("nums :#{new_nums2.object_id} #{new_nums2} \n")
+
+new_nums2.each_index do |i|
+	new_nums2[i]=i+20
+end
+print("4. nums :#{nums.object_id} #{nums} \n")
+print("4. new_nums2 :#{new_nums2.object_id} #{new_nums2} \n")
+
+
+#nums :70239820551200 [1, 2, 3, 4]
+#nums :70239820551200 [1, 2, 3, 4]
+#4. nums :70239820551200 [20, 21, 22, 23]
+#4. new_nums2 :70239820551200 [20, 21, 22, 23]
+
+```
+
+因此就解釋了為什麼一開始在`setArr`和`setArrLoop`這兩個method的結果不同了
+
+## 怎樣做比較好？
+
+在Tic Tac Toe裡面，如果需要複製棋局，最好是用`Array.new`,再用迴圈給值，就可以確保object\_id不同
+
+```ruby
+
+new_nums= Array.new
+nums.each do|i|
+	new_nums<<i
+end
+
+```

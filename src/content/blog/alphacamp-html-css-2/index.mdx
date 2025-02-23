@@ -1,0 +1,358 @@
+---
+title: "大航道計畫筆記 - HTML&CSS (2)"
+date: 2017-10-27
+tags: []
+description: ""
+
+---
+
+# HTML
+
+## 常用標籤
+
+*   標題：`<h1>`... `<h6>`
+*   文字段落：`<p></p>`
+*   清單：`<ul></ul>`, `<ol></ol>`, `<li></li>`  
+    [https://www.w3schools.com/html/html\_lists.asp](https://www.w3schools.com/html/html_lists.asp)
+*   強調語氣：`<em></em>`, strong\`  
+    [https://www.w3schools.com/html/html\_formatting.asp](https://www.w3schools.com/html/html_formatting.asp)
+*   換行：`<br>`
+*   水平線：`<hr>`
+*   超連結：`<a href>`  
+    [https://www.w3schools.com/html/html\_links.asp](https://www.w3schools.com/html/html_links.asp)
+*   圖片：`<img src>`  
+    [https://www.w3schools.com/html/html\_images.asp](https://www.w3schools.com/html/html_images.asp)
+*   區域：`<div></div>`, `<span></span>`  
+    [https://www.w3schools.com/html/html\_blocks.asp](https://www.w3schools.com/html/html_blocks.asp)
+*   表格：`<table> <tr><th></th><td></td></tr> </table>`  
+    [https://www.w3schools.com/html/html\_tables.asp](https://www.w3schools.com/html/html_tables.asp)
+*   表單：`<form> </form>`, `<label></labe>`, `<input type="text"></input>`  
+    [https://www.w3schools.com/html/html\_forms.asp](https://www.w3schools.com/html/html_forms.asp)
+
+* * *
+
+# CSS
+
+## 引入方式
+
+內嵌於 style
+
+```html
+<p>word</p>
+```
+
+寫在title
+
+```html
+<head>
+  <title>CSS 宣告</title>
+  <style>
+    p { color: black; font-size: 10pt;}
+  </style>
+</head>
+```
+
+外部檔案
+
+```html
+<head>
+  <title>CSS 宣告</title>
+  <link rel='stylesheet' href='style.css'>
+  
+</head>
+```
+
+## 選擇器
+
+選擇器
+
+例子
+
+例子描述
+
+`. class`
+
+`.intro`
+
+選擇class="intro" 的所有元素。
+
+`#id`
+
+`#firstname`
+
+選擇id="firstname" 的所有元素。
+
+`*`
+
+`*`
+
+選擇所有元素。
+
+`element`
+
+`p`
+
+選擇所有
+
+元素。
+
+`element,element`
+
+`div,p`
+
+選擇所有
+
+元素和所有
+
+元素。
+
+`element element`
+
+`div p`
+
+選擇
+
+元素內部的所有
+
+元素。
+
+`element > element`
+
+`div>p`
+
+選擇父元素為
+
+元素的所有
+
+元素。
+
+`element + element`
+
+`div+img`
+
+這個被稱為相鄰兄弟選擇器。 它僅僅會選擇剛好在左邊元素之前的元素。 在這種情況下，僅僅第一個ul之後的段落()會被賦予紅色
+
+`element ~ element`
+
+`div~img`
+
+它會選擇同一層所有的img元素，只要他們是在div之後的。
+
+### 偽類選擇器
+
+選擇器
+
+例子
+
+例子描述
+
+`:visited`
+
+`a:visited`
+
+選擇所有已被訪問的鏈接。
+
+`:active`
+
+`a:active`
+
+選擇活動鏈接。
+
+`:hover`
+
+`a:hover`
+
+選擇鼠標指針位於其上的鏈接。
+
+`:focus`
+
+`input:focus`
+
+選擇獲得焦點的input 元素。
+
+`:before`
+
+`p:before`
+
+在每個
+
+元素的內容之前插入內容。
+
+`:after`
+
+`p:after`
+
+在每個
+
+元素的內容之後插入內容。
+
+更多請參考：
+
+*   [CSS 选择器参考手册](http://www.w3school.com.cn/cssref/css_selectors.ASP)
+*   [30個你必須記住的CSS選擇器](https://code.tutsplus.com/zh-hant/tutorials/the-30-css-selectors-you-must-memorize--net-16048)
+
+### 選擇器權重
+
+關於css選擇器生效有幾個要點
+
+*   引入css順序在後的會蓋掉上面的
+*   選擇器權重大的會蓋掉小的
+*   不知道為什麼沒生效，請打開開發者模式 `⌘ ⌥ i` 檢查，驚嘆號是打錯，刪除線 就是被蓋掉。
+
+選擇器的權重  
+`!important`\> `style` > `#id` > `.class` > `element`
+
+超好懂權重一覽圖：  
+[http://muki.tw/tech/css-specificity-document/](http://muki.tw/tech/css-specificity-document/)  
+CSS 選擇器權重計算規則：  
+[https://read01.com/3Q706k.html](https://read01.com/3Q706k.html)
+
+## css 屬性
+
+### box-sizing
+
+設定box-sizing以height width為主，不會被padding撐開
+
+```css
+*{
+	box-sizing: border-box
+}
+```
+
+### display
+
+```css
+.example{
+ display:block;
+ display:inline-block;
+ display:inline;
+ display:none;
+}
+
+```
+
+inline-block 會有 4px 或 8px 的間距，要解決：
+
+```html
+ <div> inline block </div><div> inline block </div><div> inline block </div>
+```
+
+inline-block 會有垂直位置跑掉問題，要加上`vertical-align:top`之類的對齊
+
+### position
+
+*   `static` 自然排版，不會被定位
+*   `relative` 參考自已本來的位置
+*   `absolute` 往上層找，而且parent要有除了static以外的任一屬性
+*   `fix` 螢幕定位
+
+### z-index
+
+*   定位元素在非定位元素上面
+*   後者會在前者上面
+*   最好定義z-index 哪個區間是放哪些東西
+
+### transform
+
+```css
+.box{
+  transform: rotate(30deg) 
+        rotateX(30deg)
+        translate(50px,50px)
+        translateX(10px)
+        translateY(10px)
+        skew(30deg) /**壓縮/
+        scale(2) /*倍數*/ ;
+}
+
+.outter{
+  perspective: 100px;
+  /*設定深度 rotateX才看得出效果*/
+}
+
+```
+
+### 其他
+
+*   圓角 `border-radius: 28px;`
+*   透明度 `opacity: 0;`
+*   換行 `white-space: nowrap;`
+*   滑鼠指標 `cursor: pointer;`
+
+### 相對單位
+
+*   `%`:parent大小的百分比
+*   `em`: 文字大小
+*   `rem`: root em 要先宣告全部頁面的共用大小
+
+```css
+html { font-size:75% } /* 16px*75%=12px */
+/*接下來可以用 1 rem  2 rem來宣告大小*/
+```
+
+*   `vw` `vh` : view width 和view height ，用可見長寬來定義。
+
+## 常見問題
+
+### margin collapse
+
+兩個block 如果有margin-buttom和margin-top，會被吃掉
+
+```html
+  <head>
+    <meta charset='UTF-8'/>
+    <title>Margin Collapse</title>
+    <style>
+      p {
+        border: 1px solid #ff6600;
+        background-color: #FFF0B4;
+        padding: 20px 0 20px 10px;
+        margin-bottom: 50px;
+        margin-top: 25px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Margin collapse</h1>
+    <p>段落元素1</p>
+    <p>段落元素2</p>
+  </body>
+```
+
+加入隱形元素可以防止collapse
+
+```html
+<p>元素1</p>
+<div></div>  
+<p>元素2</p>
+```
+
+margin正值會被吃掉，如果有負值會相加（100+(-13)=87）
+
+### abusolute不吃parent padding
+
+如果parent有padding，有可能會吃不到，造成大小超過padding的範圍  
+這時候可以用繼承padding的方式確保會被推擠
+
+```css
+.child-element {
+    padding-left: inherit;
+    padding-right: inherit;
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+```
+
+[https://stackoverflow.com/questions/17115344/absolute-positioning-ignoring-padding-of-parent](https://stackoverflow.com/questions/17115344/absolute-positioning-ignoring-padding-of-parent)
+
+### div內如果有img，會被推擠出多餘的高度
+
+因為img預設是inline，所以會被line-height推擠出高度  
+解法：
+
+1.  調整line-height
+2.  將img設定`display:block`或`inline-block`  
+    [https://stackoverflow.com/questions/10656570/wrong-height-of-div-with-img-tag-inside](https://stackoverflow.com/questions/10656570/wrong-height-of-div-with-img-tag-inside)
+
+* * *

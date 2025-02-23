@@ -1,0 +1,94 @@
+---
+title: "在 Rails 中 使用 PostgreSQL earthdistance"
+date: 2019-05-15
+tags: []
+description: ""
+image: "sunrise-1756274_1280.jpg"
+---
+
+前陣子專案中有個需求，希望透過某個已知座標來依照距離排序物件，例如我選擇了總統府的座標 `25.0400826,121.5119547`，希望將所有的牛肉麵店由近而遠的排序。  
+因為地球是球型的（廢話），自然無法直接拿經緯度當作平面座標軸來計算所有物件的相對距離，好在經過高人指點，專案使用的 PostgreSQL 有提供強大的地球距離計算模組 [earthdistance](https://www.postgresql.org/docs/8.3/earthdistance.html) 可供使用，並且在 Rails 有對應 gem -- [activerecord-postgres-earthdistance](https://github.com/diogob/activerecord-postgres-earthdistance) 可以使用，讓我可以快速的完成這個以距離排序的功能，以下就來介紹一下它的使用方式。
+
+# 安裝 gem
+
+在 Gemfile 中加入
+
+```ruby
+gem 'activerecord-postgres-earthdistance'
+```
+
+執行 `bundle install`
+
+```shell
+$ bundle install
+```
+
+產生初始化檔案
+
+```shell
+$ rails g earth_distance:setup
+```
+
+這時候會生成一個 migration 檔案 _setupearthdistance.rb_，其實他就是幫我們在 postgre sql 中安裝 **earthdistance** 的模組：
+
+```ruby
+class SetupEarthdistance < ActiveRecord::Migration
+  def self.up
+    execute "CREATE EXTENSION IF NOT EXISTS cube"
+    execute "CREATE EXTENSION IF NOT EXISTS earthdistance"
+  end
+
+  def self.down
+    execute "DROP EXTENSION IF EXISTS earthdistance"
+    execute "DROP EXTENSION IF EXISTS cube"
+  end
+end
+```
+
+透過 db migrate 執行它
+
+```shell
+$ rails db:migrate
+```
+
+# 使用方法
+
+假設我們有個 `Address` 的 model，上面已經包含了經緯度的兩個欄位 `latitude` 及 `longitude`，則可直接在 model 中 加入 `acts_as_geolocated` :
+
+```ruby
+class Address < ActiveRecord::Base
+  acts_as_geolocated
+end
+```
+
+如果你的經緯度欄位名字不同，也可以另外指定：
+
+```ruby
+class Address < ActiveRecord::Base
+  acts_as_geolocated lat: 'latitude_column_name', lng: 'longitude_column_name'
+end
+```
+
+假如是透過關聯物件來定位座標，比如麵店 `NoodleShop` 與地址 `Address` 相關聯，則可以再加上以下的程式碼：
+
+```ruby
+class NoodleShop < ApplicationRecord
+acts_as_geolocated lat: 'latitude', lng: 'longitude', through: :address
+# ...
+```
+
+這樣我們就可以直接拿 `NoodleShop` 的資料根據距離排序了。
+
+例如拿總統府的經緯度 `25.0400826,121.5119547` 來挑選最近的六間麵店：
+
+```ruby
+  NoodleShop.order_by_distance( 25.0400826, 121.5119547 ).first(6)
+```
+
+列出總統府半徑 1 公里所有的麵店：
+
+```ruby
+  NoodleShop.within_radius( 100, 25.0400826, 121.5119547 )
+```
+
+earthdistance 的模組讓我們可以透過資料庫來快速的利用座標來排序，但如果有更近強大的地理位置相關功能支援，可以去試著研究一下 Postgre SQL 的函式庫 [PostGIS](https://ithelp.ithome.com.tw/articles/10197050)。

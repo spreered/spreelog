@@ -1,0 +1,215 @@
+---
+title: "做一隻事求人 Line Bot - (4) 撰寫 webhook"
+date: 2018-09-09
+tags: []
+description: ""
+image: "ruby-1.jpeg"
+---
+
+（這裡略過了設定 routes 的步驟）  
+這裡假設我們的 webhook url 是 [https://example.net/webhook](https://example.net/webhook)  
+路由設定在 job controller 中的 webhook action。
+
+# line bot sdk
+
+要先安裝 Line 提供的 ruby 用的 sdk  
+[https://github.com/line/line-bot-sdk-ruby](https://github.com/line/line-bot-sdk-ruby)
+
+在 Gemfile 中加入
+
+```ruby
+gem 'line-bot-api'
+```
+
+然後 bundle 安裝
+
+```
+$ bundle
+```
+
+在要撰寫 action 的 rails **job controller** 最上方 require `line/bot`
+
+```
+require 'line/bot'
+```
+
+# 撰寫 webhook action
+
+Line 打過來的 event 格式會像這樣：
+
+```ruby
+{"events"=>
+   [{
+        "type"=>"message", 
+        "replyToken"=>"49f33fecfd2a4978b806b7afa5163685", 
+        "source"=>{
+             "userId"=>"Ua52b39df3279673c4856ed5f852c81d9",
+             "type"=>"user"
+        },
+        "timestamp"=>1536052545913, 
+        "message"=>{
+            "type"=>"text", 
+            "id"=>"8521501055275", 
+            "text"=>"??"
+         }
+   }]
+}
+```
+
+除了文字的 message event 外，還有其他格式的 event，可參考 [line developer doc](https://developers.line.me/en/reference/messaging-api/#message-event)
+
+要在我們自己寫的 webhook 內成功回覆訊息，必須先準備以下參數：
+
+1.  **channel\_secret**：到 developers.line.me 的 後台取得。
+2.  **channel\_token**：到 developers.line.me 的 後台取得。
+3.  **reply\_token**：使用 `params['event'][0]['replyToken']` 取得 line 傳來的資料。
+
+以下為一個最簡單的 "hello world" webhook
+
+```ruby
+def webhook
+    message = {
+      type: 'text',
+      text: 'hello world'
+    }
+    reply_token = params['events'][0]['replyToken']
+    
+    client = Line::Bot::Client.new { |config|
+        config.channel_secret = "<channel secret>"
+        config.channel_token = "<channel access token>"
+    }
+    response = client.reply_message("<replyToken>", message)
+end
+```
+
+其中 `message` 也可以是 array 形式，夾帶多個 [message object](https://developers.line.me/en/reference/messaging-api/#message-objects)  
+要注意**一個 reply token 只能回應五則 message**，**一則 text message 只能 2000 字**  
+所以如果我在資料庫撈回的資料比較多（例如查詢「一般行政」職系的職缺），就必須將單則文字切在 2000 字內才可以發出來。
+
+## 停止 rails 預設的 csrf 驗證
+
+另外 rails 對於 post 資料有做 csrf 驗證，必須在 controller 上面先將驗證關掉，以免 line 發送 post 失敗 （我使用的是 **rails 5.2**）
+
+```ruby
+skip_before_action :verify_authenticity_token, raise: false
+```
+
+## 將 secret token 改為環境變數
+
+channel secret 和 channel access token 這兩個密鑰最好不要放在程式碼內，如果使用 heroku 的話，可以把這兩個密鑰存成環境變數
+
+```bash
+$ heroku config:set CHANNEL_SECRET=你的channel_secret CHANNEL_TOKEN=你的chennel_token
+```
+
+然後在 rails 中可以這樣取用
+
+```ruby
+    config.channel_secret = ENV['CHANNEL_SECRET']
+    config.chennel_token = ENV['CHANNEL_TOKEN']
+```
+
+## 驗證 line post 訊息來源
+
+因為沒有 csrf，要驗證是否來源為 line message api 的話，要從 request.header 中取出 `X-Line-Signature`出來比對。  
+驗證方式是以Channel secret作為密鑰（Secret key），使用HMAC-SHA256演算法取得HTTP請求本體（HTTP request body）的 Digest value。  
+將 Digest value 以 Base64 編碼，比對編碼後的內容與 `X-Line-Signature` 項目內容值是否相同；若是相同，表示該事件訊息是來自LINE平台，否則拒絕處理該事件訊息。  
+在 rails 中實作：
+
+```ruby
+    channel_secret = ENV['CHANNEL_SECRET'] # Channel secret string
+    http_request_body = request.raw_post # Request body string
+    hash = OpenSSL::HMAC::digest(OpenSSL::Digest::SHA256.new, channel_secret, http_request_body)
+    signature = Base64.strict_encode64(hash)
+
+    # Compare X-Line-Signature request header string and the signature
+    if signature != request.headers["X-Line-Signature"]
+      redirect_to root_path
+    end
+```
+
+# refector
+
+以下是我對 controller 結構做的一些調整，部分參考卡米狗的作法，但我不需要學說話所以比較簡單。
+
+```ruby
+require 'line/bot'
+class JobController < ApplicationController
+  skip_before_action :verify_authenticity_token, raise: false
+  before_action :verify_header, only: :webhook
+  def webhook
+    
+    # received_text 是接收的訊息文字
+    # keyword_reply 撰寫關鍵字回應邏輯
+    reply_text = keyword_reply(received_text)
+    
+    # 如果有回應訊息才需要 response
+    # line 驗證資料全部都塞在 reply_to_line method
+    response = reply_to_line(reply_text) if reply_text
+
+    head :ok
+  end
+
+  private
+  def line 
+    @line ||=Line::Bot::Client.new{ |config|
+      config.channel_secret = ENV['CHANNEL_SECRET']
+      config.channel_token = ENV['CHANNEL_TOKEN']
+    }
+  end
+  
+  def received_text
+    message = params['events'][0]['message']
+    message['text'] unless message.nil?
+  end
+
+  def keyword_reply(received_text)
+    if !received_text.present?
+      return
+    end
+    # 請在這裡撰寫關鍵字邏輯
+    # 符合關鍵字可以做哪些事情
+  end
+
+  def reply_to_line(reply_text)
+    reply_token = params['events'][0]['replyToken']
+    message = {
+      type: 'text',
+      text: reply_text
+    }
+    #如果要多個訊息可以寫成 
+    #messages = [{
+    #  type: 'text',
+    #  text: reply_text1
+    #},{
+    #  type: 'text',
+    #  text: reply_text2
+    #},{
+    #  type: 'text',
+    #  text: reply_text3
+    #}]
+    # 最後直接line.reply_message(reply_token, messages)
+    
+    
+    line.reply_message(reply_token, message)
+  end
+  
+  def verify_header
+    channel_secret = ENV['CHANNEL_SECRET'] # Channel secret string
+    http_request_body = request.raw_post # Request body string
+    hash = OpenSSL::HMAC::digest(OpenSSL::Digest::SHA256.new, channel_secret, http_request_body)
+    signature = Base64.strict_encode64(hash)
+
+    # Compare X-Line-Signature request header string and the signature
+    if signature != request.headers["X-Line-Signature"]
+      redirect_to root_path
+    end
+    
+  end
+ 
+end
+```
+
+其他參考資料：  
+**開發LINE聊天機器人不可不知的十件事**  
+[https://engineering.linecorp.com/tw/blog/detail/183](https://engineering.linecorp.com/tw/blog/detail/183)

@@ -1,0 +1,319 @@
+---
+title: "大航道計畫筆記 - Ruby Leetcode"
+date: 2017-09-15
+tags: []
+description: ""
+
+---
+
+# 麻瓜建議
+
+建議先去[codecademy](https://www.codecademy.com/learn/learn-ruby)暖身，建立ruby語感和型別（type）和以下觀念
+
+### if , ifels ,else判斷式
+
+*   [if else 快速教學](https://www.tutorialspoint.com/ruby/ruby_if_else.htm)
+
+### Loops 迴圈
+
+*   [loops 快速教學](https://www.tutorialspoint.com/ruby/ruby_loops.htm): for / while / until / each 的寫法
+
+要注意的是迴圈跑的最後一次, 跟其他語言有點不一樣
+
+```ruby
+#----for----
+for(0...5) do |i|
+    print(i)
+    # 輸出  01234
+end
+
+#----each----
+
+(0...5).each do|i|
+    print(i)
+    #輸出 01234
+end
+
+
+#----while----
+
+i=0
+while i<=5
+    print(i)
+    #輸出012345
+end
+
+```
+
+### Array 和 Hash
+
+*   [array 快速教學 (www.tutorialspoint.com)](https://www.tutorialspoint.com/ruby/ruby_arrays.htm)
+*   [array hash 快速教學(guides.ruby.tw)](http://guides.ruby.tw/ruby/arrays.html)
+*   [array可以用的method (ruby-doc)](https://ruby-doc.org/core-2.2.0/Array.html#method)
+*   [hash 快速教學(www.tutorialspoint.com)](https://www.tutorialspoint.com/ruby/ruby_hashes.htm)
+*   [hash可以用的method(ruby-doc)](https://ruby-doc.org/core-2.2.0/Hash.html)
+
+### Method
+
+*   [Writing Methods (ruby-for-beginners.rubymonstas.org)](http://ruby-for-beginners.rubymonstas.org/writing_methods.html)
+*   [Method (http://railsbook.tw/) 中文](http://railsbook.tw/chapters/07-ruby-basic-3.html#method)
+
+說明：類似像c java的function
+
+### Block
+
+*   [block (ruby-for-beginners.rubymonstas.org)](http://ruby-for-beginners.rubymonstas.org/blocks.html)
+*   [block (railsbook.tw)中文](http://railsbook.tw/chapters/07-ruby-basic-3.html#block)
+*   [常見 block 說明和應用：do, map, collect 中文](http://motion-express.com/blog/20141010-ruby-block-map-collect)
+
+* * *
+
+# Leetcode 解題
+
+## Power of Two
+
+leetcode : [https://leetcode.com/problems/power-of-two/](https://leetcode.com/problems/power-of-two/)
+
+#### 可使用觀念
+
+*   mod 取餘數`%` : 如`10%2==0` , `11%2==1`
+*   loops 迴圈
+*   判斷式 `if elsif`
+*   (選用)recursion 遞迴：[c語言的遞迴參考](http://imil.au.edu.tw/~hsichcl/TurboC/C_Unit8.htm)
+
+#### 解題想法
+
+```ruby
+def is_power_of_two(n)
+	# 如果是 power of 2  
+    # n可被2 整除( n%2 ==0 )
+    # 不停的整除最後如果商為1，則回傳 true
+end
+```
+
+[參考答案](https://gist.github.com/spreered/114f7d6aaaa3cd8dff4becf971e992a7)
+
+## Contains Duplicate
+
+leetcode : [https://leetcode.com/problems/contains-duplicate/](https://leetcode.com/problems/contains-duplicate/)
+
+#### 可使用觀念
+
+*   array / hash
+*   sorting: ruby array 有內建method使用
+*   loops 迴圈
+*   array的大小：`nums.length`
+
+#### 解題想法
+
+```ruby
+# @param {Integer[]} nums
+# @return {Boolean}
+def contains_duplicate(nums)
+	#做法1: 排序後 依序判斷第i和i+1個是否相同
+    #做法2: 使用hash來儲存該數字有沒有出現過
+end
+```
+
+[參考答案](https://gist.github.com/spreered/5df1ef1e029ab40ee831f777d43e4c57)
+
+## Ugly Number
+
+leetcode : [https://leetcode.com/problems/ugly-number/](https://leetcode.com/problems/ugly-number/)
+
+#### 可使用觀念
+
+*   loops 迴圈 : `[2,3,5].each{|i| }` 可以跑裡面三個數字
+
+#### 解題想法
+
+```ruby
+# @param {Integer} num
+# @return {Boolean}
+def is_ugly(num)
+	#重複除 2, 3, 5 最後如果整除且商為1 就是ugly number
+end
+```
+
+[參考答案](https://gist.github.com/spreered/1ac7604ea1dba0024917683e71c79678)
+
+## Move Zeroes
+
+leetcode : [https://leetcode.com/problems/move-zeroes/description/](https://leetcode.com/problems/move-zeroes/description/)
+
+#### 可使用觀念
+
+*   loops 迴圈
+*   array
+*   array的method: `nums.delete_at(i)` 刪除第幾個
+*   array的method: `nums.concat(anotherArray)` 把其他的array補到最後
+*   array的method: `[0]*5` 會變成`[0,0,0,0,0]`
+*   array的method: `nums<<0` 把 0補到nums array的尾巴
+
+#### 解題想法
+
+```ruby
+# @param {Integer[]} nums
+# @return {Void} Do not return anything, modify nums in-place instead.
+def move_zeroes(nums)
+	#作法1: 把0刪光，再補到最後
+    #作法2: 類似用bubble sort，但是效率較低
+
+end
+```
+
+[參考答案](https://gist.github.com/spreered/c0a86026c82879f835eb4b91c64b595d)
+
+## Valid Anagram
+
+leetcode : [https://leetcode.com/problems/valid-anagram/description/](https://leetcode.com/problems/valid-anagram/description/)
+
+#### 可使用觀念
+
+*   array , string ,hash
+*   loops
+*   string：轉換成array的method`s.each_char.to_a`
+*   hash : `iamHash.all?{|index,value| 判斷式 }` 可以快速判斷所有的hash值，最後回傳 boolean
+
+#### 解題想法
+
+```ruby
+# @param {String} s
+# @param {String} t
+# @return {Boolean}
+def is_anagram(s, t)
+	# 1.先判斷是不是一樣長，然後兩字串先排序後在相比(要先轉換)
+    # 2.開個HASH，把array的value當作key值來計算數量
+    # s如果有這個字就 +1  t有就-1  
+    # 最後hash裡面所有的value都是0就代表兩個string
+end 
+```
+
+[參考答案](https://gist.github.com/spreered/b0d7ab1a32d41f5ab8f89e46efca7a58)
+
+## Majority Element
+
+leetcode : [https://leetcode.com/problems/majority-element/description/](https://leetcode.com/problems/majority-element/description/)
+
+#### 可使用觀念
+
+*   loops
+*   array
+
+#### 解題想法
+
+```ruby
+def majority_element(nums)
+	#1.用hash去計算nums每個value的數字
+    #  再從hash挑出最大的那個key 回傳結果
+    # (但是這個方式有點多餘 因為majority_element一定是 大於n/2個)
+    #2.因為最多的那個數字一定多於一半的array, 先宣告一個 count 和max
+    # 去跑迴圈，如果count是0 , max=nums[i]
+    # 如果不是0 (這題的話一定不會小餘0), 如果max是nums[i], count就 +1
+    # max不是nums[i], count就 -1
+    # max最後就一定是Majority Element(因為count一定是>0)
+end
+
+```
+
+[參考答案](https://gist.github.com/spreered/e9dd1362a1abca4e452fbc8168ad21a0)
+
+## Remove Duplicates from Sorted Array
+
+leetcode : [https://leetcode.com/problems/remove-duplicates-from-sorted-array/description/](https://leetcode.com/problems/remove-duplicates-from-sorted-array/description/)
+
+#### 可使用觀念
+
+*   loops
+*   array
+*   array: `nums.delete_at(i)`
+*   因為會刪除元素
+*   `nums[i]=nil`
+*   `nums.compact!`
+*   `nums.uniq!`
+
+#### 解題想法
+
+```ruby
+# @param {Integer[]} nums
+# @return {Integer}
+def remove_duplicates(nums)
+	#因為排序過了，所以就判斷第i和i+1個是不是一樣
+    #是的話就把它刪掉
+    #刪除方式: 可以用delete_at
+    #hint: ruby有犯規的刪除重複值method可以用
+end
+
+```
+
+[參考答案](https://gist.github.com/spreered/740405b172949cd538784aa45b31e9af)
+
+## Single Number
+
+leetcode : [https://leetcode.com/problems/single-number/description/](https://leetcode.com/problems/single-number/description/)
+
+#### 可使用觀念
+
+*   loops
+*   array
+
+#### 解題想法
+
+```ruby
+# @param {Integer[]} nums
+# @return {Integer}
+def single_number(nums)
+	#先排序，用迴圈去找i和i+1是不是一樣
+end
+```
+
+[參考答案](https://gist.github.com/spreered/96e942a7c36290939fa4f6e771ba3d6a)
+
+## Best Time to Buy and Sell Stock
+
+leetcode : [https://leetcode.com/problems/best-time-to-buy-and-sell-stock/description/](https://leetcode.com/problems/best-time-to-buy-and-sell-stock/description/)
+
+#### 可使用觀念
+
+*   loops
+*   array
+
+#### 解題想法
+
+```ruby
+# @param {Integer[]} prices
+# @return {Integer}
+def max_profit(prices)
+   #要記錄最低價和最高利潤
+   # 設定一個變數maxprof 紀錄目前利潤
+   # 設定一個變數minprice 紀錄目前最低價
+   # 用loop跑 prices 
+   # => 如果 prices[i] > b 則算一下 prices[i] - b 有沒有比 a大
+   # => 其他的狀況，將b = prices[i]
+end
+```
+
+[參考答案](https://gist.github.com/spreered/483bbb123858525c0d5cc6b7eeebf21f)
+
+## Search Insert Position
+
+leetcode : [https://leetcode.com/problems/search-insert-position/description/](https://leetcode.com/problems/search-insert-position/description/)
+
+#### 可使用觀念
+
+*   loops
+*   array
+
+#### 解題想法
+
+```ruby
+# @param {Integer[]} nums
+# @param {Integer} target
+# @return {Integer}
+def search_insert(nums, target)
+	# 用迴圈跑，判斷target在哪一個nums[i], nums[i+1]中間
+end
+
+```
+
+[參考答案](https://gist.github.com/spreered/4b5dc0114040cfe10109b1fc8ebe72a1)

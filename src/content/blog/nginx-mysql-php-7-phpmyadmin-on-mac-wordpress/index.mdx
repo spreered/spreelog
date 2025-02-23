@@ -1,0 +1,294 @@
+---
+title: "Nginx + MySQL + PHP 7 + phpMyAdmin  on Mac / wordpress"
+date: 2018-01-24
+tags: []
+description: ""
+
+---
+
+# 安裝Xcode Command Line Tools
+
+```
+xcode-select --install
+```
+
+# 安裝brew
+
+```
+ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+```
+
+確認brew可以用 升級
+
+```
+brew doctor
+brew update 
+brew upgrade
+```
+
+# 安裝php
+
+### brew tap php
+
+```
+brew tap homebrew/dupes
+brew tap homebrew/php
+```
+
+### 安裝
+
+```
+brew install --without-apache --with-fpm --with-mysql php70
+```
+
+若使用php71 是7.1版
+
+### 加上參數調整
+
+```
+mkdir /usr/local/etc/php/7.0/conf.d
+vim /usr/local/etc/php/7.0/conf.d/phpcustom.ini
+```
+
+### 寫入以下參數
+
+```
+post_max_size = 100M
+upload_max_filesize = 100M
+max_execution_time = 120
+short_open_tag = On
+
+opcache
+opcache.memory_consumption=128
+opcache.interned_strings_buffer=8
+opcache.max_accelerated_files=4000
+opcache.revalidate_freq=60
+opcache.fast_shutdown=1
+opcache.enable_cli=1
+
+```
+
+### 設定開機啟動
+
+這裡請依實際路徑設定  
+將php.plist拷貝到`~/Library/LaunchAgents/`  
+`launchctl load -w` 那個plist
+
+```
+$mkdir -p ~/Library/LaunchAgents
+
+$cp /usr/local/Cellar/php70/7.0.3/homebrew.mxcl.php70.plist ~/Library/LaunchAgents/
+
+$launchctl load -w ~/Library/LaunchAgents/homebrew.mxcl.php70.plist
+```
+
+### 確認php已經啟動
+
+```
+$lsof -Pni4 | grep LISTEN | grep php
+```
+
+# 安裝Nignx
+
+```
+$ brew install nginx
+$ sudo cp /usr/local/opt/nginx/*.plist /Library/LaunchDaemons/
+$ sudo chown root:wheel /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
+```
+
+### 要手動建立資料夾
+
+```
+mkdir -p /usr/local/etc/nginx/logs
+mkdir -p /usr/local/etc/nginx/sites-available
+mkdir -p /usr/local/etc/nginx/sites-enabled
+mkdir -p /usr/local/etc/nginx/conf.d
+mkdir -p /usr/local/etc/nginx/ssl
+sudo mkdir -p /data/www
+sudo chown :staff /data/www
+sudo chmod 775 /data/www
+```
+
+### 設定nginx.conf
+
+`$ vim /usr/local/etc/nginx/nginx.conf`
+
+```
+worker_processes 1;
+error_log /usr/local/etc/nginx/logs/error.log debug;
+events {
+worker_connections 1024;
+}
+http {
+include mime.types;
+default_type application/octet-stream;
+log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                  '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+access_log  /usr/local/etc/nginx/logs/access.log  main;
+sendfile            on;
+keepalive_timeout   65;
+index index.html index.php;
+include /usr/local/etc/nginx/sites-enabled/*;
+}
+```
+
+### php-fpm
+
+設定ngninx上php-fmp的參數，到時候引入server擋即可  
+`$ vim /usr/local/etc/nginx/conf.d/php-fpm`
+
+```
+location ~ .php{
+    try_files $uri = 404;
+    fastcgi_pass 127.0.0.1:9000; 
+    fastcgi_index index.php; 
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    fastcgi_param CI_ENV development;
+    include fastcgi_params;
+}
+```
+
+### 建立主機
+
+以下略過ssl部分  
+`vim /usr/local/etc/nginx/sites-available/default`
+
+```
+server {
+listen 80;
+server_name localhost;
+root /data/www/;
+access_log  /usr/local/etc/nginx/logs/default.access.log  main;
+location / {
+    include   /usr/local/etc/nginx/conf.d/php-fpm;
+}
+location = /info {
+    allow   127.0.0.1;
+    deny    all;
+    rewrite (.*) /.info.php;
+}
+error_page  404     /404.html;
+error_page  403     /403.html;
+}
+```
+
+連結到site-enable
+
+```
+ln -sfv /usr/local/etc/nginx/sites-available/default /usr/local/etc/nginx/sites-enabled/default
+```
+
+### start nginx
+
+```
+sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
+```
+
+# MySQL
+
+`$brew install mysql`
+
+### 設定開機自動執行
+
+`$ ln -sfv /usr/local/opt/mysql/*.plist ~/Librabry/LaunchAgents`  
+手動執行  
+`$ launchctl load ~/Library/LaunchAngents/homebrew.mxcl.mysql.plist`
+
+### 安全安裝
+
+`$ mysql_secure_installation`  
+根據指示安裝
+
+### 測試是否安裝成功
+
+`$ mysql -u root -p`
+
+# phyMyAdmin
+
+`$ brew install phpmyadmin`  
+將phpmyadmin link到web路徑下  
+`$ sudo ln -s /usr/local/share/phpmyadmin /data/www/`  
+照理講應該可以正確執行 `myurl/phpmyadmin/index.php`
+
+如果css和image讀不出來，可以去ngninx/logs下面查看error  
+有可能是security.limit\_extensions設定問題  
+`vim /usr/local/etc/php/7.1/php-fpm.d/www.conf`下新增
+
+```
+security.limit_extensions = 
+```
+
+# wordpress
+
+下載wordpress解壓縮到`/data/www/`  
+參照https://codex.wordpress.org/Nginx 設定 nginx.conf 以及 server檔  
+使用phpmyadmin建立一個資料庫wordpress  
+然後執行http://localhost開始安裝wordpress
+
+# 參考檔案
+
+ngninx/site-available
+
+```
+server {
+	listen 80;
+	server_name guitardemo.servehttp.com;
+	root /data/www/;
+	access_log  /usr/local/etc/nginx/logs/default.access.log  main;
+	location / {
+	    include   /usr/local/etc/nginx/conf.d/php-fpm;
+	    try_files $uri $uri/ /index.php?$args;
+	}
+	location = /info {
+    		allow   127.0.0.1;
+    		deny    all;
+    		rewrite (.*) /.info.php;
+	}
+
+	error_page  404     /404.html;
+	error_page  403     /403.html;
+}
+```
+
+nginx/conf.d/php-fpm
+
+```
+location ~ .php{
+    root /data/www/;
+    try_files $uri = 404;
+    fastcgi_pass 127.0.0.1:9000; 
+    fastcgi_index index.php; 
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    fastcgi_param CI_ENV development;
+    include fastcgi_params;
+}
+```
+
+nginx.conf
+
+```
+worker_processes 1;
+error_log /usr/local/etc/nginx/logs/error.log debug;
+events {
+	worker_connections 1024;
+}
+http {
+	include mime.types;
+	default_type application/octet-stream;
+	log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+        	          '$status $body_bytes_sent "$http_referer" '
+                	      '"$http_user_agent" "$http_x_forwarded_for"';
+	access_log  /usr/local/etc/nginx/logs/access.log  main;
+	sendfile            on;
+	keepalive_timeout   65;
+	index index.html index.php;
+	include /usr/local/etc/nginx/sites-enabled/*;
+}
+```
+
+## 參考連結
+
+[https://codex.wordpress.org/Nginx](https://codex.wordpress.org/Nginx)  
+[https://www.jianshu.com/p/2ba7820883ba](https://www.jianshu.com/p/2ba7820883ba)  
+[https://blog.frd.mn/install-nginx-php-fpm-mysql-and-phpmyadmin-on-os-x-mavericks-using-homebrew/](https://blog.frd.mn/install-nginx-php-fpm-mysql-and-phpmyadmin-on-os-x-mavericks-using-homebrew/)

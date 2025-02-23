@@ -1,0 +1,146 @@
+---
+title: "Metaprogramming Ruby (2) 動態方法"
+date: 2018-11-05
+tags: []
+description: ""
+image: "ruby.jpeg"
+---
+
+# Dynamic Dispatch
+
+一般呼叫方法的方式
+
+```ruby
+obj.my_method(3)
+```
+
+這裡面 receiver 是指物件 obj，方法名稱是 `my_method`，可以改由 `send` 方法來呼叫。
+
+```ruby
+obj.send(:my_method, 3)
+```
+
+這樣的好處是 method 的名稱可以作為一個參數傳遞。
+
+```ruby
+attr = [:a,:b]
+default = {}
+attr.each do |x|
+  default.send("[]=",x,99)
+end
+# => default {:a => 99, :b => 99}
+```
+
+要注意的是即使是 private method，也可以使用 `send` 來呼叫。如果怕因此呼叫到 private method ，可以將 `send` 改用 `public_send` 方法。
+
+# Define Mehtods Dynamically
+
+使用 define\_method 來定義 method，好處是在 run time 可動態的生成 method
+
+```ruby
+class MyClass
+  define_method :my_method do |my_arg|
+    my_arg * 3
+  end
+end
+```
+
+以書本上的範例為例，，使用 `define_method` 來產出重複程式碼的 class method，這樣以下的 mouse、 cpu、 keyboard 都不需要打重複的程式碼：
+
+```ruby
+class Computer
+  def initialize(computer_id, data_source)
+    @id = computer_id
+    @data_source = data_source
+  end
+  
+  def self.define_component(name)
+    define_method(name) do
+      info = @data.souce.send "get_{#name}_info", @id
+      info
+    end
+  end
+  
+  define_component :mouse
+  defind_conponent :cpu
+  defind_conponent :keyboard
+end
+```
+
+如果有方法可以取得 mouse、cpu 這些名稱參數的話（課本範例是透過 data\_source），可以改成以下的方式
+
+```ruby
+class Computer
+  def initialize(computer_id, data_source)
+    @id = computer_id
+    @data_source = data_source
+    data_source.methods.grep(/^get_(.*)_info$/){Computer.defind_component $1}
+  end
+  
+  def self.define_component(name)
+    define_method(name) do
+      info = @data.souce.send "get_{#name}_info", @id
+      info
+    end
+  end
+end
+```
+
+（以上 grep 的技巧是來自 reqular expression，`$1`是取出符合條件字串的 pattern值）
+
+# Dynamic Proxies
+
+只要呼叫到不存在的 method，Ruby 會去轉為呼叫 `method_missing` 方法。  
+而**Dynamic proxies** 是呼叫一個不存在的 method （稱之為 **ghost method**） ，使用 `method_missing` 來動態產生對應方式的一個 hack。
+
+也就是說透過 method\_missing 來「轉送」沒有定義過的 method
+
+```ruby
+class Computer
+  def initialize(computer_id, data_source)
+    @id = computer_id
+    @data_source = data_source
+  end
+  
+  def method_missing(name)
+  # 改寫 method_missing
+    super if !@data_source.respon_to?("get_#{name}_info")
+    # 如果沒有 get_#{name}_info 就丟回去給 superclass（原本的）method_missing
+    info = @data_source.send("get_#{name}_info", @id)
+    price = @data_source.send("get_#{name}_info", @id)
+    result = "blah blah"
+    result
+  end
+end
+```
+
+## respond\_to? 問題
+
+因為是一個不存在的 ghost method，所以當我們使用 `respond_to?` 來找尋這個 ghost method 的時候當然會回傳 false。因此使用 dynamic proxy 的技巧，最好一併改寫 `respond_to?`會呼叫的 `respond_to_missing?`
+
+```ruby
+class Computer
+  # ...
+  def respond_to_missing?(method, include_private = false)
+    @data_source.respond_to?("get_#(method)_info") || super
+  end
+end
+```
+
+## const\_missing
+
+如果需要對常數 const 做 hack，也可以使用 `const_missing` 來做類似 Dynamic Proxies 做的事情
+
+## blank state
+
+使用 Dynamic Proxies 的問題是，容易跟現有的 method name 做衝突，因此最好是讓類別物件本身的 method 清乾淨，做法是繼承 **BasicObject**
+
+```ruby
+class Computer < BasicObject
+  # ....
+```
+
+或者是自行建立一個 blank state
+
+*   `undef_method(method)` 會移除任何繼承鍊上的方法
+*   `remove_method(method)` 會移除自己的方法，superclass 的不會

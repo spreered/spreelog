@@ -1,0 +1,192 @@
+---
+title: "Ruby 中的顯性和隱性型別轉換"
+date: 2020-06-17
+tags: []
+description: ""
+
+---
+
+Ruby 中 `to_i` 和 `to_int` 有什麼差別呢？之前大概都是要用到型別轉換的時候，兩個都試試看，但不太知道有什麼特別的意義。最近看了 [Confident Ruby](https://pragprog.com/titles/agcr/) 之後才知道裡面是有一點學問的。
+
+## Duck Typing
+
+首先要說到因為 Ruby 本身並沒有型別的概念，在其他語言中的基本型別 (primitive type) 都是用物件去實踐出來的。再來是很少看到 Ruby 撰寫的原始碼裡面對於 method 的參數做型別(或者嚴格說起來是類別）的檢查，相應的是使用 Ruby 的開發哲學 **Duck Typing**。
+
+> 鴨子型別 Duck Typing: 鴨子型別在程式設計中是動態型別的一種風格。在這種風格中，一個物件有效的語意，不是由繼承自特定的類或實現特定的介面，而是由"目前方法和屬性的集合"決定
+
+舉個 Duck Typing 風格的例子：
+
+1.  假如今天某個 method `meth_a` 接收一個參數 `dog`。
+2.  `meth_a` 裡面會對這個收到的參數 `dog` 傳遞 `bark` 這個訊息 (也就是執行 `dog.bark`)。
+3.  而 Duck Typing 的哲學就是，我們不去檢查 `dog` 物件是不是真的是狗，只要他可以接收 `bark` 這個訊息，那我們就可以當作他是狗來使用。
+
+大部分外面查到的資料都會舉這種抽象的例子，但在 Confident Ruby 中拿了一個更實際的例子來舉例：
+
+```ruby
+Place = Struct.new(:index, :name)
+
+first = Place.new(0, "first")
+second = Place.new(1, "second")
+third = Place.new(2, "third")
+
+# given an array of winners ["John", "Jack", "Josh"]
+[first, second, third].each do |place|
+  puts "In #{place.name} place, #{winners[place.index]}!"
+end
+```
+
+其中 `Place` 裡面的 `index` 是存放 winners 陣列中的 index number。  
+利用 duck typing ，上面這段程式碼可以改寫的更好看
+
+```ruby
+# 在 Place 中實作一個 `to_int`
+
+Place = Struct.new(:index, :name, :prize) do
+  def to_int
+    index
+  end
+end
+
+# 這樣就可以直接把 Place 物件直接丟到 winners 陣列中取值
+
+winners[first]   # John
+winners[second]  # Jack
+winners[third]   # Josh
+
+```
+
+為什麼可以這樣做呢？  
+原因是在 Ruby 中 Array 不會去檢查 `index` 這個參數是否為 `Integer` class，而是去看看它可不可以接收 `to_int` 這個訊息。也就是說，只要我們的物件上有實作 `to_int` 的方法，都可以當作一個 index 的參數傳給陣列來取值。
+
+## 深入 Ruby 的型別轉換
+
+在開始討論型別轉換之前，先來做一個小實驗：
+
+```ruby
+arr = [1,2,3,4,5]
+# => [1, 2, 3, 4, 5]
+arr[nil]
+# TypeError (no implicit conversion from nil to integer)
+```
+
+上面嘗試著把一個 nil 物件作為 index 丟給 array 取值，然後 ruby 告訴我們「no implicit conversion from nil to integer」。  
+`nil` 不能轉成數字嗎？嘗試著對 `nil` 送 `to_i`，結果是可以轉成數字的：
+
+```ruby
+nil.to_i
+# => 0
+```
+
+  
+
+### Explicit Conversion vs Implicit Conversion
+
+看了 Confident Ruby 之後，才知道原來型別轉換有兩種：
+
+*   顯性 Explicit 轉換：將某類別轉為「不相干」的目標類別，通常會實作在 Ruby core 中。
+*   隱性 Implict 轉換：將某類別轉為「較為相干」的目標類別，不會在 Ruby core 中實作。
+
+似懂非懂，先來看個表
+
+Method | Target Class | Type
+-------|--------------|------
+`#to_a`| Array | Explicit
+`#to_ary` | Array | Implicit
+`#to_s` | String | Explicit
+`#to_str` | String | Implicit 
+`#to_h` | Hash | Explicit
+`#to_hash` | Hash | Implicit
+`#to_c` | Complex | Explicit
+`#to_enum` | Enumerator | Explicit
+`#to_i` | Integer | Explicit
+`#to_int` | Integer | Implicit
+`#to_path` | String | Implicit
+`#to_proc` | Proc | Implicit
+`#to_sym` | Symbol | Implicit
+
+上面列舉了一些在 ruby 裡面常見的型別轉換方法。  
+依照我們一開始的定義，ruby core 中是不實作 implicit conversion 的，例如以下用 `to_s` 和 `to_str` 來解釋：
+
+```ruby
+# Integer 是 ruby core 中實作的類別
+1.class
+#=> Integer
+
+
+# 讓 1 去呼叫 to_str, 結果是回傳 undefined method
+1.to_str
+# NoMethodError (undefined method `to_str' for 1:Integer)
+
+# 讓 1 去呼叫 to_s, 就可以成功轉為 string
+1.t_s
+#=> "1"
+```
+
+那 Implicit conversion 又有什麼用途呢？
+
+  
+
+### 使用者需要自行實作 Implicit conversion method
+
+直接說重點：
+
+*   隱性轉換的方法，必須要由使用者自己實作。
+*   ruby core method 對於輸入的參數物件只會呼叫隱性轉換，不會呼叫險性轉換
+    *   有例外，那就是字串中的 `#{}`
+*   未來我們如果實做自己的 method，也可以對參數物件做隱性轉換，而不是直接檢查它的類別
+
+回到文章一開頭在解釋 ruby 的 duck typing 的風格，不檢查物件的型別，而是看看那個物件有沒有「支援」那些需要用到的方法。換句話說，我們可以在自己實作的物件裡面加上 implicit conversion 的方法來達成某些目的，而很多 ruby core 或 standard library 都有對輸入的物件傳遞隱性轉換的訊息。
+
+以 `Array` 來說，就會對 index 傳進來的物件傳送 `to_int` 做隱性轉換，所以即使 ruby core 中時做的 `nil` 物件可以使用顯性轉換 `to_i` 轉為整數，他還是不可以做為 array 的 index，因為 ruby core 一定不會在物件上 define `#to_int`。
+
+再舉一個 `to_s` 和 `to_str` 的例子：
+
+```ruby
+Dog = Struct.new(:name)
+
+dog = Dog.new("Bingo")
+
+"this is #{dog}"
+
+#=> this is #<struct Dog name="Bingo">
+
+"this is" + dog
+#=>TypeError (no implicit conversion of Dog into String)
+```
+
+ruby string 中的 `#{}` 比較特別，他會去讓裡面的物件呼叫 `to_s` 的方法 (在 `Object` 中實作），但是如果我們使用 `+` 來字串相加，就會去呼叫 `to_str` 隱性轉換了
+
+如果要讓 `Dog` 支援字串相加，就必須要來自己實作 `to_str` 方法：
+
+```ruby
+Dog = Struct.new(:name) do
+  def to_str
+    name
+  end
+end
+
+dog = Dog.new("Bingo")
+
+"this is " + dog
+#=> this is Bingo
+```
+
+  
+
+### 唯一有實作 Implicit Conversion 的就是自己
+
+前面說到 ruby core 是不實作隱性轉換的，但有一個特例，那就是該類別本身一定會實作自己的隱性轉換方法  
+例如 String 一定可以呼叫 `to_str`，Integer 一定可以呼叫 `to_int`
+
+```ruby
+"Hello".to_str
+#=> Hello
+
+1.to_int
+#=> 1
+
+[1, 2, 3].to_ary
+#=> [1, 2, 3]
+```
+
+會這樣做的原因也很好理解，因為「鴨子自己本來就會呱呱叫」，這樣 ruby core method 在使用這些原始類別的時候，對它呼叫隱性轉換依舊可以拿回該物件的原值，也就是因為這樣，我們在 ruby 的程式碼中很少看到有人在做 type checking 囉。

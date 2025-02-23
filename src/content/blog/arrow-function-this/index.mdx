@@ -1,0 +1,134 @@
+---
+title: "Function 內的 this 到底是哪個 this"
+date: 2018-12-06
+tags: []
+description: ""
+
+---
+
+每次看到 ES6 的相關教學，都搞不太清楚 arrow function 中的 this 到底是綁定到哪兒去，後來發現其實我連傳統 function 宣告的 this 怎麼綁的也不太明白，直到最近看了[卡斯伯老師的文章](https://wcc723.github.io/javascript/2017/12/12/javascript-this/)以及 Wes Bos 的 ES6 課程才稍稍弄清楚。
+
+# 直接呼叫函式
+
+如果是一般的 function call，`this` 在嚴格模式下是 `undefined`，sloppy mode 下是全域物件( 瀏覽器中就是 window ) 。
+
+以下範例，無論把 function 宣告在哪邊，只要是**一般的 function call**，`this` 指的都是全域物件**window**
+
+```js
+function testFunc() {
+  console.log(this); // window
+  
+  function testInsideFunc () {
+    console.log(this); //window
+  }
+  testInsideFunc();
+}
+testFunc();
+```
+
+以下的例子，即使將 function 定義在物件中，呼叫的時候是直接呼叫函式，得到的 `this` 一定會是 window
+
+```js
+let obj = {
+    func: function(){
+        function testFunc(){
+            console.log(this)
+        }
+        testFunc() //這裡直接呼叫
+    }
+}
+
+obj.func()
+// 印出 window
+```
+
+上面這兩個例子我們可以知道，**只要是直接呼叫 function，一般模式下 this 一定是全域物件**。
+
+# 透過物件呼叫函式
+
+也就是呼叫物件的屬性方法。這個時候物件本身就是一個 **receiver**，我們把要呼叫的函式名稱丟給這個 receiver 去執行。這時候 `this` 就會綁定在這個 receiver 上。
+
+```javascript
+function testFunc(){
+  console.log(this)
+}
+let testObj = {
+  testFunc: testFunc
+}
+testFunc() //window
+testObj.testFunc() //testObj
+```
+
+由上面的例子可得知，如果透過 `obj.func()` 這樣的方式去執行函式，`this` 就會綁定成 `obj`
+
+另外還可以使用如 `call`、`apply`、`bind`的方法強制綁定 `this`，或者是用建構子（constructor）的方式綁定 `this` 到新物件上，但這不在本篇討論的範圍。
+
+# Arrow function 的 this
+
+arrow function 的 `this` 是依據語彙環境的父層區域（parent scope）來綁定。  
+白話的說，arrow function 定義位置（不是呼叫順序）的上一層 `this` 代表誰，arrow function 內的 `this` 就代表誰
+
+範例
+
+```javascript
+objA = {
+  funcA: function(){
+    console.log(this) 
+    let arrA = ()=> console.log(this)
+    // 這時候他的 parent 是 funcA, 所以 funcA 的 this 是誰， 
+    // arrA 的 this 就是誰
+	funcA()
+  }
+}
+
+objA.funcA()
+//objA 
+//objA 
+```
+
+再看一個測試  
+如果 parent scope 因為呼叫方式的不同，`this` 不一樣，而內層的 arrow function 也會跟著 parent scope 改變 `this`
+
+```javascript
+function funcA(){
+	console.log(this)
+    let arrA = ()=> console.log(this)
+    arrA()
+}
+let objA = {
+	funcA: funcA
+}
+//直接呼叫的狀況，this 是 window，裡面的 arrow function 也抓到 window
+funcA() 
+// window
+// window
+
+// 改為透過 objA 去呼叫，this 變成 objA，arrow function 也抓到 objA
+objA.funcA()
+// objA
+// objA
+
+```
+
+# 範例
+
+這是 Wes Bos 的 ES6 課程範例，我有稍做修改  
+不得不佩服這是目前我看到最簡單明瞭的例子
+
+```javascript
+const box = document.querySelector('.box')
+box.addEventListener('click', function(){
+  // 這裡的 this 是 box
+  this.classList.toggle('opening');
+  setTimeout(()=>{
+    // 如果這裡用傳統function，這邊的 this 會變成 window
+    // 但如果是使用 arrow function，就會跟語彙環境的parent使用相同的 this
+    // 也就是 obj
+    this.classList.toggle('open');
+  },500)
+})
+```
+
+範例請看：
+
+See the Pen [arrow this](https://codepen.io/spreered/pen/vQqqLj/) by spreered ([@spreered](https://codepen.io/spreered)) on [CodePen](https://codepen.io).
