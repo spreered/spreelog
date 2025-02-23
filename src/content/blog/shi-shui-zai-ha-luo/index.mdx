@@ -1,8 +1,9 @@
 ---
 title: "是誰在哈囉? 如何搞定 SPA 與 API Server 的登入驗證"
-date: 
+date: 2020-01-04 
 tags: []
 description: ""
+image: "hello.jpg"
 
 ---
 
@@ -24,7 +25,7 @@ description: ""
 一切的故事從這句話開始:「HTTP 是一個 stateless 的[協議](https://tools.ietf.org/html/rfc2616)」
 
 因為每次的交談（ Request - Response）都是無狀態，所以狀態必須由 client 或 server 端來維持。因此簡單的來說透過瀏覽器登入網站的行為會有點像這樣：
-
+![image1](1.png)
 1.  當使用者登入送出帳號密碼
 2.  Server 驗證帳密無誤，回傳一個「已登入」的通行證
 3.  使用者瀏覽登入後的頁面，這時候就會夾帶著通行證一起發送
@@ -69,59 +70,17 @@ Set-Cookie: login_state=fred_is_login_passport
 
 除了 Cookie 之外，瀏覽器們接著又發展出了 localStorage 和 sessionStorage 來讓我們放東西，不過他們可以做到的事情不太一樣，先來個比較表吧：
 
-Cookie
 
-localStorage
-
-sessionStorage
-
-Server 端設定
-
-O
-
-X
-
-X
-
-Client 端設定
-
-O
-
-O
-
-O
-
-Size
-
-4k
-
-~5mb
-
-~5mb
-
-Request 自動夾帶
-
-O
-
-X
-
-X
-
-前端 js 易用性
-
-差
-
-好
-
-好
-
-保存期限
-
-可由server 端設定 max age, client 端生成的在關閉後就清空
-
-同源的網頁可以存取，關閉網頁重開後還會存在
-
+| 特性        | Cookie | localStorage | sessionStorage |
+|------------|---------|--------------|----------------|
+| Server 端設定 | O       | X            | X              |
+| Client 端設定 | O       | O            | O              |
+| Size        | 4k      | ~5mb         | ~5mb           |
+| Request 自動夾帶 | O     | X            | X              |
+| 前端 js 易用性  | 差      | 好           | 好             |
+| 保存期限      | 可由server 端設定 max age, client 端生成的在關閉後就清空 | 同源的網頁可以存取，關閉關閉頁面後就不存在 | 網頁重開後還會存在 |
 關閉頁面後就不存在
+
 
 瀏覽器對這些新夥伴也提供了好操作的 API 供使用，以 localStorage 為例：
 
