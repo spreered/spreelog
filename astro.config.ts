@@ -21,7 +21,10 @@ import icon from 'astro-icon'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://spreered.com',
+  site: 'https://www.spreered.com',
+  redirects: {
+    '/compiler_for_dummies': '/blog/compiler_for_dummies'
+  },
   integrations: [
     tailwind({
       applyBaseStyles: false,
